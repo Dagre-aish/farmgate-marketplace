@@ -17,11 +17,14 @@ import {
   Star,
   Cloud,
   Lock,
-  AlertCircle
+  AlertCircle,
+  Ban,
+  XCircle
 } from 'lucide-react';
 import { FarmerListing, BuyerProfile, Bid, AppLanguage, UserRole } from '../types';
 import { TRANSLATIONS } from '../services/i18n';
 import { UserAccount } from '../services/firebaseAuth';
+import { withdrawBidInFirebase } from '../services/firebaseService';
 import confetti from 'canvas-confetti';
 
 interface LiveBiddingPanelProps {
@@ -34,6 +37,7 @@ interface LiveBiddingPanelProps {
   onOpenNewListing: () => void;
   onSubmitBid: (newBid: Bid) => void;
   onAcceptBid: (bid: Bid) => void;
+  onWithdrawBid?: (bidId: string) => void;
   language?: AppLanguage;
 }
 
@@ -47,6 +51,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
   onOpenNewListing,
   onSubmitBid,
   onAcceptBid,
+  onWithdrawBid,
   language = 'en'
 }) => {
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
@@ -61,8 +66,10 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
 
   const activeListing = farmerListings.find((l) => l.id === selectedLotId) || farmerListings[0];
   const activeBids = bids.filter((b) => b.listingId === activeListing.id);
-  const highestBid = activeBids.length > 0 
-    ? activeBids.reduce((prev, curr) => (curr.bidPricePerQuintal > prev.bidPricePerQuintal ? curr : prev))
+  const validActiveBids = activeBids.filter((b) => b.status !== 'WITHDRAWN');
+  
+  const highestBid = validActiveBids.length > 0 
+    ? validActiveBids.reduce((prev, curr) => (curr.bidPricePerQuintal > prev.bidPricePerQuintal ? curr : prev))
     : null;
 
   const currentTopPrice = highestBid ? highestBid.bidPricePerQuintal : activeListing.askingPricePerQuintal;
@@ -134,6 +141,13 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
     } catch (e) {}
   };
 
+  const handleBlackoutBid = async (bidId: string) => {
+    if (confirm('Are you sure you want to blackout & withdraw your bid? This will opt you out of this auction lot to save other bidders time.')) {
+      await withdrawBidInFirebase(bidId);
+      if (onWithdrawBid) onWithdrawBid(bidId);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       
@@ -160,7 +174,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
           <div className="flex items-center gap-3 bg-slate-900/90 p-3 rounded-2xl border border-slate-800 shrink-0">
             <div className="text-center px-3 border-r border-slate-800">
               <span className="text-[10px] text-slate-400 block font-mono">{t.totalBids}</span>
-              <span className="text-lg font-black text-emerald-400 font-mono">{bids.length} Bids</span>
+              <span className="text-lg font-black text-emerald-400 font-mono">{validActiveBids.length} Active</span>
             </div>
             <div className="text-center px-3 border-r border-slate-800">
               <span className="text-[10px] text-slate-400 block font-mono">{t.escrowLocked}</span>
@@ -205,7 +219,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
             <div>
               <span className="font-extrabold text-emerald-950 block">🏢 Corporate Buyer Bidding Mode Active</span>
               <span className="text-[11px] text-emerald-900">
-                Placing a bid creates a legally binding corporate commitment locked in escrow. <em>(Submitted bids cannot be deleted or removed).</em>
+                Place binding bids backed by escrow. If you change your mind, click <strong>"🚫 Blackout / Opt-Out Bid"</strong> to withdraw your bid so other bidders' time is saved.
               </span>
             </div>
           </div>
@@ -227,6 +241,11 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                     LIVE AUCTION
                   </span>
                   <span className="text-slate-400 text-xs font-mono">Lot ID: #{activeListing.id}</span>
+                  {activeListing.auctionTimeSlot && (
+                    <span className="bg-slate-800 text-emerald-400 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-slate-700">
+                      Slot: {activeListing.auctionTimeSlot}
+                    </span>
+                  )}
                 </div>
                 <h2 className="text-xl font-black text-white flex items-center gap-2">
                   <span>{activeListing.commodityName}</span>
@@ -368,7 +387,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                     <span>{t.liveIncomingBidsFeed}</span>
                   </h3>
                   <span className="text-[10px] font-bold text-slate-500 uppercase font-mono">
-                    {activeBids.length} Offers Received
+                    {validActiveBids.length} Active Offers ({bids.length - validActiveBids.length} Blacked Out)
                   </span>
                 </div>
 
@@ -378,49 +397,74 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                    {activeBids.map((bid, index) => (
-                      <div
-                        key={bid.id}
-                        className={`p-3.5 rounded-2xl border flex items-center justify-between gap-4 transition-all ${
-                          index === 0
-                            ? 'bg-emerald-50/70 border-emerald-300 shadow-xs ring-1 ring-emerald-400/30'
-                            : 'bg-white border-slate-200'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={bid.bidderLogo || 'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&q=80&w=200'}
-                            alt={bid.bidderName}
-                            className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-slate-900">{bid.bidderName}</span>
-                              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
-                                {bid.bidderKycTier || 'TIER_1_VERIFIED'}
-                              </span>
-                              {index === 0 && (
-                                <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded">
-                                  HIGHEST BID
+                    {activeBids.map((bid, index) => {
+                      const isWithdrawn = bid.status === 'WITHDRAWN';
+                      const isMyBid = authUser?.uid === bid.bidderId || authUser?.displayName === bid.bidderName || activeBuyer?.name === bid.bidderName;
+
+                      return (
+                        <div
+                          key={bid.id}
+                          className={`p-3.5 rounded-2xl border flex items-center justify-between gap-4 transition-all ${
+                            isWithdrawn
+                              ? 'bg-rose-50/50 border-rose-200 opacity-65'
+                              : index === 0
+                              ? 'bg-emerald-50/70 border-emerald-300 shadow-xs ring-1 ring-emerald-400/30'
+                              : 'bg-white border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={bid.bidderLogo || 'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&q=80&w=200'}
+                              alt={bid.bidderName}
+                              className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold text-xs ${isWithdrawn ? 'line-through text-slate-500' : 'text-slate-900'}`}>
+                                  {bid.bidderName}
                                 </span>
-                              )}
+                                {isWithdrawn ? (
+                                  <span className="bg-rose-100 text-rose-800 text-[9px] font-black px-1.5 py-0.2 rounded border border-rose-300 flex items-center gap-1">
+                                    <Ban className="w-3 h-3 text-rose-600" />
+                                    <span>BLACKOUT / WITHDRAWN</span>
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
+                                      {bid.bidderKycTier || 'TIER_1_VERIFIED'}
+                                    </span>
+                                    {index === 0 && (
+                                      <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded">
+                                        HIGHEST ACTIVE BID
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-500 block leading-tight font-mono">
+                                {bid.createdAt} {isWithdrawn ? '• Opted out to save other bidders time' : '• Binding Corporate Offer'}
+                              </span>
                             </div>
-                            <span className="text-[10px] text-slate-500 block leading-tight font-mono">
-                              {bid.createdAt} • Non-Removable Binding Bid
+                          </div>
+
+                          <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                            <span className={`text-base font-black font-mono block ${isWithdrawn ? 'line-through text-slate-400' : 'text-emerald-700'}`}>
+                              ₹{bid.bidPricePerQuintal} / qtl
                             </span>
+
+                            {!isWithdrawn && isMyBid && (
+                              <button
+                                onClick={() => handleBlackoutBid(bid.id)}
+                                className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-extrabold text-[10px] rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                <XCircle className="w-3 h-3 text-rose-600" />
+                                <span>🚫 Blackout / Opt-Out Bid</span>
+                              </button>
+                            )}
                           </div>
                         </div>
-
-                        <div className="text-right shrink-0">
-                          <span className="text-base font-black text-emerald-700 font-mono block">
-                            ₹{bid.bidPricePerQuintal} / qtl
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-mono block">
-                            Total: ₹{(bid.bidPricePerQuintal * bid.bidQuantityQuintals).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -442,7 +486,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
 
           <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
             {farmerListings.map((listing) => {
-              const lotBids = bids.filter((b) => b.listingId === listing.id);
+              const lotBids = bids.filter((b) => b.listingId === listing.id && b.status !== 'WITHDRAWN');
               const topBid = lotBids.length > 0
                 ? Math.max(...lotBids.map((b) => b.bidPricePerQuintal))
                 : listing.askingPricePerQuintal;
@@ -466,7 +510,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                       #{listing.id}
                     </span>
                     <span className="text-[10px] font-mono font-bold text-amber-400">
-                      {lotBids.length} Bids Placed
+                      {lotBids.length} Active Bids
                     </span>
                   </div>
 

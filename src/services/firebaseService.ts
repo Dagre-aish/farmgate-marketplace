@@ -228,3 +228,27 @@ export async function pushBidToFirebase(newBid: Bid): Promise<void> {
     console.warn('Saved bid locally & broadcasted:', err);
   }
 }
+
+/**
+ * Blackout / Withdraw Bid in Firebase Firestore & BroadcastChannel
+ */
+export async function withdrawBidInFirebase(bidId: string): Promise<void> {
+  if (broadcastChannel) {
+    broadcastChannel.postMessage({ type: 'WITHDRAW_BID', payload: { bidId } });
+  }
+
+  triggerPushNotification(
+    '🚫 BIDDER BLACKOUT / WITHDRAWAL!',
+    `A corporate bidder has opted out and withdrawn their bid from the active auction floor.`
+  );
+
+  try {
+    const bidDocRef = doc(db, 'bids', bidId);
+    await setDoc(bidDocRef, {
+      status: 'WITHDRAWN'
+    }, { merge: true });
+    console.log('Bid successfully marked as WITHDRAWN in Firebase Firestore:', bidId);
+  } catch (err) {
+    console.warn('Updated bid status locally:', err);
+  }
+}

@@ -99,7 +99,7 @@ export interface Bid {
   bidQuantityQuintals: number;
   deliveryTerms: string;
   paymentTerms: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COUNTERED';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COUNTERED' | 'WITHDRAWN';
   createdAt: string;
 }
 
