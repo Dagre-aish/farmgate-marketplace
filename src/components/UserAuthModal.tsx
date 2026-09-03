@@ -68,7 +68,9 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
       console.error('Firebase Auth Error:', err);
       let message = err.message || 'Authentication failed. Please try again.';
 
-      if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
+        message = 'Your Vercel domain is not authorized in Firebase Console yet! Go to console.firebase.google.com -> Authentication -> Settings -> Authorized domains -> Add your Vercel URL.';
+      } else if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
         message = 'Firebase Auth is not enabled yet in your Firebase Console! Please go to console.firebase.google.com -> Authentication -> Click "Get Started" and enable Email/Password & Google.';
       } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         message = 'Invalid email or password credentials.';
@@ -95,7 +97,9 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
     } catch (err: any) {
       console.error('Google Sign In Error:', err);
       let message = err.message || 'Google Sign In failed. Please try again.';
-      if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
+      if (err.code === 'auth/unauthorized-domain' || err.message?.includes('unauthorized-domain')) {
+        message = 'Your Vercel domain is not authorized in Firebase Console yet! Go to console.firebase.google.com -> Authentication -> Settings -> Authorized domains -> Add your Vercel URL.';
+      } else if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
         message = 'Firebase Auth is not enabled yet in your Firebase Console! Please go to console.firebase.google.com -> Authentication -> Click "Get Started" and enable Email/Password & Google.';
       }
       setErrorMessage(message);
