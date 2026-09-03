@@ -10,7 +10,10 @@ import {
   Sparkles,
   Building2,
   Users,
-  Wheat
+  Wheat,
+  FileText,
+  MapPin,
+  Landmark
 } from 'lucide-react';
 import { UserRole, AppLanguage } from '../types';
 import { signUpWithEmail, signInWithEmail, signInWithGoogle, UserAccount } from '../services/firebaseAuth';
@@ -33,9 +36,18 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
 
   const [mode, setMode] = useState<'SIGN_IN' | 'SIGN_UP'>('SIGN_IN');
   const [role, setRole] = useState<UserRole>(initialRole);
-  const [displayName, setDisplayName] = useState('');
+  
+  // Basic Auth
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Role-Specific Profile Details
+  const [displayName, setDisplayName] = useState('');
+  const [gstin, setGstin] = useState('');
+  const [district, setDistrict] = useState('Sehore');
+  const [state, setState] = useState('Madhya Pradesh');
+  const [landholdingAcres, setLandholdingAcres] = useState<number>(5.5);
+  const [upiId, setUpiId] = useState('farmer.patidar@oksbi');
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,12 +60,24 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
     try {
       if (mode === 'SIGN_UP') {
         if (!email || !password) {
-          throw new Error('Please fill in both email and password.');
+          throw new Error('Please fill in email and password.');
+        }
+        if (!displayName) {
+          throw new Error(role === 'BUYER' ? 'Please enter Company Name.' : 'Please enter Name.');
         }
         if (password.length < 6) {
           throw new Error('Password must be at least 6 characters long.');
         }
-        const user = await signUpWithEmail(email, password, displayName, role);
+
+        const extraProfileData = {
+          gstin: role === 'BUYER' ? gstin : undefined,
+          district: role === 'FARMER' ? district : undefined,
+          state: role === 'FARMER' ? state : undefined,
+          landholdingAcres: role === 'FARMER' ? landholdingAcres : undefined,
+          upiId: role === 'FARMER' ? upiId : undefined
+        };
+
+        const user = await signUpWithEmail(email, password, displayName, role, extraProfileData);
         onSuccess(user);
         onClose();
       } else {
@@ -110,17 +134,17 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative overflow-hidden animate-in fade-in zoom-in-95 space-y-6">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative overflow-hidden animate-in fade-in zoom-in-95 space-y-5 max-h-[90vh] overflow-y-auto">
         
         {/* Modal Top Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800">
               <ShieldCheck className="w-5 h-5 text-emerald-700" />
             </div>
             <div>
               <h2 className="font-extrabold text-base text-slate-900">
-                {mode === 'SIGN_IN' ? 'Firebase Sign In' : 'Create Farmgate Account'}
+                {mode === 'SIGN_IN' ? 'Firebase Sign In' : 'Create Farmgate Profile'}
               </h2>
               <p className="text-[11px] text-slate-500">
                 Secured by Firebase Authentication & 100% Escrow
@@ -171,11 +195,11 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         {/* Role Selector */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-            Select Your Operating Role:
+            Select Account Role:
           </label>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: 'FARMER' as UserRole, label: 'Farmer', icon: '🌾' },
+              { id: 'FARMER' as UserRole, label: 'Farmer / Producer', icon: '🌾' },
               { id: 'BUYER' as UserRole, label: 'Corporate Buyer', icon: '🏢' },
               { id: 'FPO' as UserRole, label: 'FPO Admin', icon: '👥' }
             ].map((r) => (
@@ -194,6 +218,25 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Role Rules Banner */}
+        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] text-slate-600">
+          {role === 'FARMER' && (
+            <span className="text-emerald-800 font-semibold">
+              🌾 <strong>Farmer Access:</strong> Can list harvest lots, set asking price & time slots, view live auction bids, and accept top corporate offers. <em>(Farmers view bids, but cannot bid on lots).</em>
+            </span>
+          )}
+          {role === 'BUYER' && (
+            <span className="text-emerald-800 font-semibold">
+              🏢 <strong>Corporate Buyer Access:</strong> Can place binding corporate bids backed by escrow. <em>(Bids are legally binding and cannot be deleted once submitted).</em>
+            </span>
+          )}
+          {role === 'FPO' && (
+            <span className="text-amber-900 font-semibold">
+              👥 <strong>FPO Admin Access:</strong> Can aggregate smallholder farmer lots into batch pools and access 90-day forward demand forecasts.
+            </span>
+          )}
         </div>
 
         {/* Error Alert Message */}
@@ -223,31 +266,136 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         <div className="relative flex items-center justify-center">
           <hr className="w-full border-slate-200" />
           <span className="bg-white px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider absolute">
-            or use email
+            or fill details
           </span>
         </div>
 
-        {/* Email & Password Form */}
+        {/* Role-Specific Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
+          
+          {/* Sign Up Fields */}
           {mode === 'SIGN_UP' && (
-            <div>
-              <label className="block text-slate-600 font-semibold text-xs mb-1">Full Name / Entity Name</label>
-              <div className="relative">
-                <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  required
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g. Rameshwar Patidar or ITC Agri"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            </div>
+            <>
+              {role === 'BUYER' ? (
+                <>
+                  <div>
+                    <label className="block text-slate-600 font-semibold text-xs mb-1">Company Name</label>
+                    <div className="relative">
+                      <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="e.g. Reliance Retail Fresh, ITC Agri Business"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-600 font-semibold text-xs mb-1">Corporate GSTIN Number</label>
+                    <div className="relative">
+                      <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={gstin}
+                        onChange={(e) => setGstin(e.target.value)}
+                        placeholder="e.g. 23AAAAA0000A1Z5"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : role === 'FARMER' ? (
+                <>
+                  <div>
+                    <label className="block text-slate-600 font-semibold text-xs mb-1">Farmer Full Name</label>
+                    <div className="relative">
+                      <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="e.g. Rameshwar Patidar"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-600 font-semibold text-xs mb-1">District</label>
+                      <input
+                        type="text"
+                        required
+                        value={district}
+                        onChange={(e) => setDistrict(e.target.value)}
+                        placeholder="e.g. Sehore"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold text-xs mb-1">State</label>
+                      <input
+                        type="text"
+                        required
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        placeholder="e.g. Madhya Pradesh"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-600 font-semibold text-xs mb-1">Land (Acres)</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={landholdingAcres}
+                        onChange={(e) => setLandholdingAcres(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold text-xs mb-1">UPI ID for Escrow Payout</label>
+                      <input
+                        type="text"
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value)}
+                        placeholder="farmer@oksbi"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 font-mono"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label className="block text-slate-600 font-semibold text-xs mb-1">FPO Collective Name</label>
+                  <div className="relative">
+                    <Users className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="e.g. Sehore Krishi Vikas Producer Co."
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <div>
-            <label className="block text-slate-600 font-semibold text-xs mb-1">Email Address</label>
+            <label className="block text-slate-600 font-semibold text-xs mb-1">
+              {role === 'BUYER' ? 'Corporate Email' : 'Email Address'}
+            </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -281,7 +429,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
             disabled={loading}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 mt-2"
           >
-            <span>{loading ? 'Processing...' : mode === 'SIGN_IN' ? 'Sign In to Farmgate' : 'Complete Registration'}</span>
+            <span>{loading ? 'Processing...' : mode === 'SIGN_IN' ? 'Sign In to Farmgate' : 'Complete Profile Setup'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

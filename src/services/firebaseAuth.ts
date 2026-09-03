@@ -38,6 +38,10 @@ export interface UserAccount {
   phoneNumber?: string | null;
   kycStatus?: string;
   escrowBalanceINR?: number;
+  gstin?: string;
+  district?: string;
+  state?: string;
+  upiId?: string;
 }
 
 /**
@@ -46,9 +50,10 @@ export interface UserAccount {
 export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
   return onAuthStateChanged(auth, async (firebaseUser: User | null) => {
     if (firebaseUser) {
-      // Fetch user profile role from Firestore if exists
       let role: UserRole = 'FARMER';
       let escrowBalanceINR = 250000;
+      let gstin = '';
+      let district = '';
 
       try {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -57,6 +62,8 @@ export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
           const data = userDocSnap.data();
           if (data.role) role = data.role as UserRole;
           if (data.escrowBalanceINR !== undefined) escrowBalanceINR = data.escrowBalanceINR;
+          if (data.gstin) gstin = data.gstin;
+          if (data.district) district = data.district;
         }
       } catch (err) {
         console.warn('Firestore user fetch note:', err);
@@ -70,7 +77,9 @@ export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
         photoURL: firebaseUser.photoURL,
         phoneNumber: firebaseUser.phoneNumber,
         kycStatus: 'TIER_1_VERIFIED',
-        escrowBalanceINR
+        escrowBalanceINR,
+        gstin,
+        district
       });
     } else {
       callback(null);
@@ -79,13 +88,20 @@ export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
 }
 
 /**
- * Sign Up with Email and Password
+ * Sign Up with Email and Password & Detailed Role Profile
  */
 export async function signUpWithEmail(
   email: string, 
   password: string, 
   displayName: string,
-  role: UserRole
+  role: UserRole,
+  extraProfileData: {
+    gstin?: string;
+    district?: string;
+    state?: string;
+    landholdingAcres?: number;
+    upiId?: string;
+  } = {}
 ): Promise<UserAccount> {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
@@ -94,7 +110,9 @@ export async function signUpWithEmail(
     await updateProfile(user, { displayName });
   }
 
-  // Save role and initial data to Firestore
+  const escrowBalanceINR = role === 'BUYER' ? 500000 : 50000;
+
+  // Save role and detailed profile data to Firestore
   try {
     const userDocRef = doc(db, 'users', user.uid);
     await setDoc(userDocRef, {
@@ -102,7 +120,8 @@ export async function signUpWithEmail(
       email: user.email,
       displayName: displayName || user.email?.split('@')[0],
       role: role,
-      escrowBalanceINR: role === 'BUYER' ? 500000 : 50000,
+      escrowBalanceINR,
+      ...extraProfileData,
       createdAt: new Date().toISOString()
     });
   } catch (err) {
@@ -115,7 +134,8 @@ export async function signUpWithEmail(
     displayName: displayName || user.email?.split('@')[0] || 'Agri User',
     role: role,
     kycStatus: 'TIER_1_VERIFIED',
-    escrowBalanceINR: role === 'BUYER' ? 500000 : 50000
+    escrowBalanceINR,
+    ...extraProfileData
   };
 }
 
@@ -128,6 +148,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
   let role: UserRole = 'FARMER';
   let escrowBalanceINR = 250000;
+  let gstin = '';
 
   try {
     const userDocRef = doc(db, 'users', user.uid);
@@ -136,6 +157,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
       const data = userDocSnap.data();
       if (data.role) role = data.role as UserRole;
       if (data.escrowBalanceINR !== undefined) escrowBalanceINR = data.escrowBalanceINR;
+      if (data.gstin) gstin = data.gstin;
     }
   } catch (e) {}
 
@@ -146,7 +168,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
     role: role,
     photoURL: user.photoURL,
     kycStatus: 'TIER_1_VERIFIED',
-    escrowBalanceINR
+    escrowBalanceINR,
+    gstin
   };
 }
 

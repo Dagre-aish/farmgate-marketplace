@@ -261,6 +261,7 @@ export function App() {
           <LiveBiddingPanel
             farmerListings={farmerListings}
             bids={bids}
+            userRole={userRole}
             activeBuyer={activeBuyer}
             onOpenBuyerAuth={() => setShowAuthModal(true)}
             onSubmitBid={handleSubmitBid}
