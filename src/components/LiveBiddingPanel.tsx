@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { FarmerListing, BuyerProfile, Bid, AppLanguage, UserRole } from '../types';
 import { TRANSLATIONS } from '../services/i18n';
+import { UserAccount } from '../services/firebaseAuth';
 import confetti from 'canvas-confetti';
 
 interface LiveBiddingPanelProps {
@@ -28,6 +29,7 @@ interface LiveBiddingPanelProps {
   bids: Bid[];
   userRole?: UserRole;
   activeBuyer: BuyerProfile | null;
+  authUser?: UserAccount | null;
   onOpenBuyerAuth: () => void;
   onSubmitBid: (newBid: Bid) => void;
   onAcceptBid: (bid: Bid) => void;
@@ -39,6 +41,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
   bids,
   userRole = 'FARMER',
   activeBuyer,
+  authUser,
   onOpenBuyerAuth,
   onSubmitBid,
   onAcceptBid,
@@ -93,19 +96,23 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
       return;
     }
 
-    if (!activeBuyer) {
+    if (!authUser && !activeBuyer) {
       onOpenBuyerAuth();
       return;
     }
+
+    const bidderName = authUser ? authUser.displayName : (activeBuyer ? activeBuyer.name : 'Corporate Buyer');
+    const bidderId = authUser ? authUser.uid : (activeBuyer ? activeBuyer.id : `buyer_${Date.now()}`);
+    const bidderLogo = authUser?.photoURL || (activeBuyer ? activeBuyer.logo : 'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&q=80&w=200');
 
     const newBid: Bid = {
       id: `bid_${Date.now()}`,
       listingId: activeListing.id,
       commodityName: activeListing.commodityName,
-      bidderId: activeBuyer.id,
-      bidderName: activeBuyer.name,
-      bidderLogo: activeBuyer.logo,
-      bidderKycTier: activeBuyer.kycTier,
+      bidderId,
+      bidderName,
+      bidderLogo,
+      bidderKycTier: 'TIER_1_VERIFIED',
       bidPricePerQuintal: price,
       bidQuantityQuintals: activeListing.quantityQuintals,
       deliveryTerms: 'Direct Farmgate Pick-up (Buyer Freight Guaranteed)',

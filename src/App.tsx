@@ -69,18 +69,16 @@ export function App() {
       setAuthUser(user);
       if (user) {
         setUserRole(user.role);
-        if (user.role === 'BUYER') {
-          setActiveBuyer({
-            id: user.uid,
-            name: user.displayName,
-            logo: user.photoURL || 'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&q=80&w=200',
-            email: user.email || 'buyer@corp.com',
-            gstin: '23AAAAA0000A1Z5',
-            kycTier: 'TIER_1_VERIFIED',
-            escrowBalanceINR: user.escrowBalanceINR || 500000,
-            commoditiesOfInterest: ['Wheat', 'Basmati Rice', 'Soybean']
-          });
-        }
+        setActiveBuyer({
+          id: user.uid,
+          name: user.displayName,
+          logo: user.photoURL || 'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&q=80&w=200',
+          email: user.email || 'buyer@corp.com',
+          gstin: user.gstin || '23AAAAA0000A1Z5',
+          kycTier: 'TIER_1_VERIFIED',
+          escrowBalanceINR: user.escrowBalanceINR || 500000,
+          commoditiesOfInterest: ['Wheat', 'Basmati Rice', 'Soybean']
+        });
       }
     });
 
@@ -263,6 +261,7 @@ export function App() {
             bids={bids}
             userRole={userRole}
             activeBuyer={activeBuyer}
+            authUser={authUser}
             onOpenBuyerAuth={() => setShowAuthModal(true)}
             onSubmitBid={handleSubmitBid}
             onAcceptBid={handleAcceptBid}
