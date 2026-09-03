@@ -84,7 +84,7 @@ export const UserAuthModal: React.FC<UserAuthModalProps> = ({
         if (!email || !password) {
           throw new Error('Please fill in both email and password.');
         }
-        const user = await signInWithEmail(email, password);
+        const user = await signInWithEmail(email, password, role);
         onSuccess(user);
         onClose();
       }

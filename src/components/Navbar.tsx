@@ -224,21 +224,56 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 {showUserDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in space-y-1">
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in space-y-1">
                     <div className="p-2 border-b border-slate-100 text-xs">
                       <span className="font-bold text-slate-900 block">{authUser.displayName}</span>
                       <span className="text-[10px] text-slate-500 font-mono">{authUser.email}</span>
+                      <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded mt-1 inline-block">
+                        Active Role: {userRole}
+                      </span>
                     </div>
-                    <button
-                      onClick={() => {
-                        setShowUserDropdown(false);
-                        if (onLogout) onLogout();
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-xl flex items-center gap-2 transition-colors"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
-                    </button>
+
+                    <div className="p-1 space-y-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block px-2">Switch Operating Role:</span>
+                      <button
+                        onClick={() => {
+                          setUserRole('BUYER');
+                          setShowUserDropdown(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between transition-colors ${
+                          userRole === 'BUYER' ? 'bg-emerald-50 text-emerald-900 font-extrabold' : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>🏢 Corporate Buyer</span>
+                        {userRole === 'BUYER' && <span className="text-emerald-600 font-black">✓</span>}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserRole('FARMER');
+                          setShowUserDropdown(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 text-xs font-bold rounded-xl flex items-center justify-between transition-colors ${
+                          userRole === 'FARMER' ? 'bg-emerald-50 text-emerald-900 font-extrabold' : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>🌾 Farmer</span>
+                        {userRole === 'FARMER' && <span className="text-emerald-600 font-black">✓</span>}
+                      </button>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-1">
+                      <button
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          if (onLogout) onLogout();
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-xl flex items-center gap-2 transition-colors"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

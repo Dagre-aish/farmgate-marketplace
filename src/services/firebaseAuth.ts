@@ -45,14 +45,29 @@ export interface UserAccount {
 }
 
 /**
+ * Infer role smartly from email or name
+ */
+
+function inferRole(email?: string | null, name?: string | null, savedRole?: UserRole): UserRole {
+  if (savedRole && (savedRole === 'BUYER' || savedRole === 'FARMER' || savedRole === 'FPO')) {
+    return savedRole;
+  }
+  const str = `${email || ''} ${name || ''}`.toLowerCase();
+  if (str.match(/(mart|corp|retail|ltd|inc|buyer|trade|agro|biz|market|itc|reliance|vishal)/i)) {
+    return 'BUYER';
+  }
+  return 'FARMER';
+}
+
+/**
  * Subscribe to Firebase Auth State Changes
  */
 export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
   return onAuthStateChanged(auth, async (firebaseUser: User | null) => {
     if (firebaseUser) {
-      let role: UserRole = 'FARMER';
-      let escrowBalanceINR = 250000;
-      let gstin = '';
+      let role: UserRole = inferRole(firebaseUser.email, firebaseUser.displayName);
+      let escrowBalanceINR = role === 'BUYER' ? 500000 : 50000;
+      let gstin = '23AAAAA0000A1Z5';
       let district = '';
 
       try {
@@ -64,6 +79,17 @@ export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
           if (data.escrowBalanceINR !== undefined) escrowBalanceINR = data.escrowBalanceINR;
           if (data.gstin) gstin = data.gstin;
           if (data.district) district = data.district;
+        } else {
+          // Auto-save inferred profile to Firestore
+          await setDoc(userDocRef, {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+            role,
+            escrowBalanceINR,
+            gstin,
+            createdAt: new Date().toISOString()
+          }, { merge: true });
         }
       } catch (err) {
         console.warn('Firestore user fetch note:', err);
@@ -73,7 +99,7 @@ export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Agri User',
-        role: role,
+        role,
         photoURL: firebaseUser.photoURL,
         phoneNumber: firebaseUser.phoneNumber,
         kycStatus: 'TIER_1_VERIFIED',
@@ -85,6 +111,21 @@ export function subscribeToAuth(callback: (user: UserAccount | null) => void) {
       callback(null);
     }
   });
+}
+
+/**
+ * Update active user role in Firestore
+ */
+export async function updateUserRole(uid: string, newRole: UserRole): Promise<void> {
+  try {
+    const userDocRef = doc(db, 'users', uid);
+    await setDoc(userDocRef, { 
+      role: newRole,
+      escrowBalanceINR: newRole === 'BUYER' ? 500000 : 50000
+    }, { merge: true });
+  } catch (err) {
+    console.warn('Failed to update role in Firestore:', err);
+  }
 }
 
 /**
@@ -123,7 +164,7 @@ export async function signUpWithEmail(
       escrowBalanceINR,
       ...extraProfileData,
       createdAt: new Date().toISOString()
-    });
+    }, { merge: true });
   } catch (err) {
     console.warn('Saved user auth credentials locally:', err);
   }
@@ -140,25 +181,40 @@ export async function signUpWithEmail(
 }
 
 /**
- * Sign In with Email and Password
+ * Sign In with Email and Password & Selected Role
  */
-export async function signInWithEmail(email: string, password: string): Promise<UserAccount> {
+export async function signInWithEmail(
+  email: string, 
+  password: string,
+  selectedRole?: UserRole
+): Promise<UserAccount> {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
 
-  let role: UserRole = 'FARMER';
-  let escrowBalanceINR = 250000;
-  let gstin = '';
+  let role: UserRole = selectedRole || inferRole(user.email, user.displayName);
+  let escrowBalanceINR = role === 'BUYER' ? 500000 : 50000;
+  let gstin = '23AAAAA0000A1Z5';
 
   try {
     const userDocRef = doc(db, 'users', user.uid);
     const userDocSnap = await getDoc(userDocRef);
     if (userDocSnap.exists()) {
       const data = userDocSnap.data();
-      if (data.role) role = data.role as UserRole;
+      if (selectedRole) {
+        role = selectedRole;
+      } else if (data.role) {
+        role = data.role as UserRole;
+      }
       if (data.escrowBalanceINR !== undefined) escrowBalanceINR = data.escrowBalanceINR;
       if (data.gstin) gstin = data.gstin;
     }
+
+    // Save/update selected role in Firestore
+    await setDoc(userDocRef, {
+      role: role,
+      displayName: user.displayName || user.email?.split('@')[0],
+      escrowBalanceINR: role === 'BUYER' ? 500000 : 50000
+    }, { merge: true });
   } catch (e) {}
 
   return {
@@ -176,11 +232,11 @@ export async function signInWithEmail(email: string, password: string): Promise<
 /**
  * Sign In / Sign Up with Google OAuth 1-Click Popup
  */
-export async function signInWithGoogle(defaultRole: UserRole = 'FARMER'): Promise<UserAccount> {
+export async function signInWithGoogle(defaultRole: UserRole = 'BUYER'): Promise<UserAccount> {
   const userCredential = await signInWithPopup(auth, googleProvider);
   const user = userCredential.user;
 
-  let role: UserRole = defaultRole;
+  let role: UserRole = inferRole(user.email, user.displayName, defaultRole);
   let escrowBalanceINR = 500000;
 
   try {
@@ -196,10 +252,10 @@ export async function signInWithGoogle(defaultRole: UserRole = 'FARMER'): Promis
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: defaultRole,
-        escrowBalanceINR: defaultRole === 'BUYER' ? 500000 : 50000,
+        role,
+        escrowBalanceINR: role === 'BUYER' ? 500000 : 50000,
         createdAt: new Date().toISOString()
-      });
+      }, { merge: true });
     }
   } catch (err) {
     console.warn('Google sign in profile sync note:', err);
