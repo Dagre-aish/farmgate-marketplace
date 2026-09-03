@@ -151,6 +151,9 @@ export interface FarmerListing {
   };
   bidsCount?: number;
   highestBidPricePerQtl?: number;
+  auctionEndDate?: string;
+  auctionTimeSlot?: string;
+  auctionDurationHours?: number;
   status: 'AVAILABLE' | 'UNDER_NEGOTIATION' | 'ESCROW_LOCKED' | 'SOLD';
   createdAt: string;
 }

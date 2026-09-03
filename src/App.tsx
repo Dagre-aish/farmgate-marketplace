@@ -27,7 +27,7 @@ import { BuyerAuthModal } from './components/BuyerAuthModal';
 import { PlaceBidModal } from './components/PlaceBidModal';
 import { ListingBidsModal } from './components/ListingBidsModal';
 import { UserAuthModal } from './components/UserAuthModal';
-import { subscribeToRealtimeBids, pushBidToFirebase } from './services/firebaseService';
+import { subscribeToRealtimeBids, subscribeToRealtimeListings, pushBidToFirebase } from './services/firebaseService';
 import { subscribeToAuth, logoutUser, UserAccount } from './services/firebaseAuth';
 
 export function App() {
@@ -85,13 +85,20 @@ export function App() {
     return () => unsubscribeAuth();
   }, []);
 
-  // Firebase Realtime Bids Subscription
+  // Firebase Realtime Bids & Listings Subscriptions
   useEffect(() => {
-    const unsubscribe = subscribeToRealtimeBids((updatedBids) => {
+    const unsubscribeBids = subscribeToRealtimeBids((updatedBids) => {
       setBids(updatedBids);
     }, INITIAL_BIDS);
 
-    return () => unsubscribe();
+    const unsubscribeListings = subscribeToRealtimeListings((updatedListings) => {
+      setFarmerListings(updatedListings);
+    }, INITIAL_FARMER_LISTINGS);
+
+    return () => {
+      unsubscribeBids();
+      unsubscribeListings();
+    };
   }, []);
 
   // Quick navigation handlers

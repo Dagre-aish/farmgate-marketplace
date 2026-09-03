@@ -5,7 +5,6 @@ import {
   onSnapshot, 
   doc, 
   setDoc, 
-  addDoc, 
   query, 
   orderBy,
   serverTimestamp 
@@ -33,6 +32,126 @@ const broadcastChannel = typeof window !== 'undefined' && 'BroadcastChannel' in 
   : null;
 
 /**
+ * Trigger Live Browser Push Notification & Toast
+ */
+export function triggerPushNotification(title: string, body: string) {
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body,
+          icon: '🌾'
+        });
+      } catch (e) {}
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+          try {
+            new Notification(title, { body, icon: '🌾' });
+          } catch (e) {}
+        }
+      });
+    }
+  }
+}
+
+/**
+ * Real-time Farmer Listings Listener (Firestore + BroadcastChannel)
+ */
+export function subscribeToRealtimeListings(
+  onListingsUpdate: (listings: FarmerListing[]) => void,
+  initialListings: FarmerListing[]
+) {
+  let currentListings = [...initialListings];
+
+  // 1. Firebase Firestore Realtime Listener for Listings
+  try {
+    const listingsQuery = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
+    const unsubscribeFirestore = onSnapshot(
+      listingsQuery,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const firestoreListings: FarmerListing[] = [];
+          snapshot.forEach((docSnap) => {
+            firestoreListings.push({ id: docSnap.id, ...docSnap.data() } as FarmerListing);
+          });
+
+          if (firestoreListings.length > 0) {
+            // Merge firestore listings with initial static listings (avoid duplicates)
+            const existingIds = new Set(firestoreListings.map(l => l.id));
+            const merged = [
+              ...firestoreListings,
+              ...initialListings.filter(l => !existingIds.has(l.id))
+            ];
+            currentListings = merged;
+            onListingsUpdate(merged);
+          }
+        }
+      },
+      (error) => {
+        console.warn('Firebase Firestore listings listening warning:', error.message);
+      }
+    );
+  } catch (e) {
+    console.warn('Firebase listings initialization note:', e);
+  }
+
+  // 2. BroadcastChannel Local Cross-Browser Sync Listener
+  if (broadcastChannel) {
+    broadcastChannel.onmessage = (event) => {
+      if (event.data?.type === 'NEW_LISTING') {
+        const newListing = event.data.payload as FarmerListing;
+        if (!currentListings.some((l) => l.id === newListing.id)) {
+          currentListings = [newListing, ...currentListings];
+          onListingsUpdate(currentListings);
+          triggerPushNotification(
+            '🌾 NEW CROP AUCTION LIVE!',
+            `${newListing.farmerName} listed ${newListing.quantityQuintals} Quintals of ${newListing.commodityName} starting at ₹${newListing.askingPricePerQuintal}/qtl.`
+          );
+        }
+      } else if (event.data?.type === 'NEW_BID') {
+        const newBid = event.data.payload as Bid;
+        triggerPushNotification(
+          '🔔 NEW BINDING BID SUBMITTED!',
+          `${newBid.bidderName} placed a bid of ₹${newBid.bidPricePerQuintal}/qtl on ${newBid.commodityName}!`
+        );
+      }
+    };
+  }
+
+  return () => {
+    // Cleanup
+  };
+}
+
+/**
+ * Publish New Farmer Auction Listing to Firebase Firestore & BroadcastChannel
+ */
+export async function pushListingToFirebase(newListing: FarmerListing): Promise<void> {
+  // Broadcast to other open browser windows/tabs immediately
+  if (broadcastChannel) {
+    broadcastChannel.postMessage({ type: 'NEW_LISTING', payload: newListing });
+  }
+
+  triggerPushNotification(
+    '🌾 NEW CROP AUCTION LIVE!',
+    `${newListing.farmerName} listed ${newListing.quantityQuintals} Quintals of ${newListing.commodityName} starting at ₹${newListing.askingPricePerQuintal}/qtl.`
+  );
+
+  // Push to Firebase Cloud Firestore
+  try {
+    const listingDocRef = doc(db, 'listings', newListing.id);
+    await setDoc(listingDocRef, {
+      ...newListing,
+      firestoreTimestamp: serverTimestamp()
+    });
+    console.log('Farmer Listing successfully synced to Firebase Firestore:', newListing.id);
+  } catch (err) {
+    console.warn('Saved listing locally & broadcasted:', err);
+  }
+}
+
+/**
  * Real-time Bids Listener (Firestore + BroadcastChannel)
  */
 export function subscribeToRealtimeBids(
@@ -41,7 +160,6 @@ export function subscribeToRealtimeBids(
 ) {
   let currentBids = [...initialBids];
 
-  // 1. Firebase Firestore Realtime Snapshot Listener
   try {
     const bidsQuery = query(collection(db, 'bids'), orderBy('createdAt', 'desc'));
     const unsubscribeFirestore = onSnapshot(
@@ -49,8 +167,8 @@ export function subscribeToRealtimeBids(
       (snapshot) => {
         if (!snapshot.empty) {
           const firestoreBids: Bid[] = [];
-          snapshot.forEach((doc) => {
-            firestoreBids.push({ id: doc.id, ...doc.data() } as Bid);
+          snapshot.forEach((docSnap) => {
+            firestoreBids.push({ id: docSnap.id, ...docSnap.data() } as Bid);
           });
 
           if (firestoreBids.length > 0) {
@@ -67,9 +185,10 @@ export function subscribeToRealtimeBids(
     console.warn('Firebase initialization note:', e);
   }
 
-  // 2. BroadcastChannel Local Cross-Browser Sync Listener
   if (broadcastChannel) {
+    const origHandler = broadcastChannel.onmessage;
     broadcastChannel.onmessage = (event) => {
+      if (origHandler) origHandler(event);
       if (event.data?.type === 'NEW_BID') {
         const newBid = event.data.payload as Bid;
         if (!currentBids.some((b) => b.id === newBid.id)) {
@@ -81,7 +200,7 @@ export function subscribeToRealtimeBids(
   }
 
   return () => {
-    // Unsubscribe cleanup
+    // Cleanup
   };
 }
 
@@ -89,19 +208,22 @@ export function subscribeToRealtimeBids(
  * Publish New Bid to Firebase Firestore & BroadcastChannel
  */
 export async function pushBidToFirebase(newBid: Bid): Promise<void> {
-  // Broadcast to other open browser windows/tabs immediately
   if (broadcastChannel) {
     broadcastChannel.postMessage({ type: 'NEW_BID', payload: newBid });
   }
 
-  // Push to Firebase Cloud Firestore
+  triggerPushNotification(
+    '🔔 NEW BINDING BID SUBMITTED!',
+    `${newBid.bidderName} placed a bid of ₹${newBid.bidPricePerQuintal}/qtl on ${newBid.commodityName}!`
+  );
+
   try {
     const bidDocRef = doc(db, 'bids', newBid.id);
     await setDoc(bidDocRef, {
       ...newBid,
       firestoreTimestamp: serverTimestamp()
     });
-    console.log('Bid successfully synced to Firebase Firestore project farmgate-sih26132:', newBid.id);
+    console.log('Bid successfully synced to Firebase Firestore:', newBid.id);
   } catch (err) {
     console.warn('Saved bid locally & broadcasted:', err);
   }
