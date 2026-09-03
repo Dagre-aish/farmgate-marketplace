@@ -263,6 +263,7 @@ export function App() {
             activeBuyer={activeBuyer}
             authUser={authUser}
             onOpenBuyerAuth={() => setShowAuthModal(true)}
+            onOpenNewListing={() => setShowNewListingModal(true)}
             onSubmitBid={handleSubmitBid}
             onAcceptBid={handleAcceptBid}
             language={language}

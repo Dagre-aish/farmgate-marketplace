@@ -31,6 +31,7 @@ interface LiveBiddingPanelProps {
   activeBuyer: BuyerProfile | null;
   authUser?: UserAccount | null;
   onOpenBuyerAuth: () => void;
+  onOpenNewListing: () => void;
   onSubmitBid: (newBid: Bid) => void;
   onAcceptBid: (bid: Bid) => void;
   language?: AppLanguage;
@@ -43,6 +44,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
   activeBuyer,
   authUser,
   onOpenBuyerAuth,
+  onOpenNewListing,
   onSubmitBid,
   onAcceptBid,
   language = 'en'
@@ -179,16 +181,22 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
 
       {/* Role Permission Alert Notice */}
       {userRole === 'FARMER' ? (
-        <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-amber-950 text-xs shadow-xs">
+        <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950 text-xs shadow-xs">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-amber-700 shrink-0" />
             <div>
-              <span className="font-extrabold text-amber-900 block">🌾 Farmer View Mode Active</span>
+              <span className="font-extrabold text-amber-900 block">🌾 Farmer Access Active</span>
               <span className="text-[11px] text-amber-800">
-                You can monitor all live corporate bids in real time and click <strong>"Accept Top Corporate Bid & Lock Escrow"</strong> to execute trade settlement. <em>(Only Corporate Buyers can place bids).</em>
+                You can create new crop lot auctions for corporate buyers to bid on, monitor incoming corporate offers, and accept top bids to lock escrow payout.
               </span>
             </div>
           </div>
+          <button
+            onClick={onOpenNewListing}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95"
+          >
+            <span>🌾 + List My Crop Lot for Auction</span>
+          </button>
         </div>
       ) : (
         <div className="bg-emerald-50 border border-emerald-300 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs">
