@@ -92,20 +92,20 @@ export const TradeSettlementModal: React.FC<TradeSettlementModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700">
-              <ShieldCheck className="w-6 h-6" />
+            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 font-bold flex items-center justify-center">
+              <Sparkles className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-slate-900">
-                  Digital Escrow Trade Settlement
+                <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                  <span>🏆 Winning Bidder Quote & Settlement</span>
                 </h3>
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-300">
                   Contract #{transaction.id.slice(-6)}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                100% Guaranteed Settlement • 1.5% Platform Take Rate Commission
+                100% Guaranteed Settlement • Issued to Winning Bidder ({transaction.buyerName})
               </p>
             </div>
           </div>
@@ -278,12 +278,25 @@ export const TradeSettlementModal: React.FC<TradeSettlementModalProps> = ({
 
         {/* Modal Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
-          >
-            {transaction.currentStep === 'PAYOUT_RELEASED' ? 'Close Window' : 'Cancel'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+            >
+              {transaction.currentStep === 'PAYOUT_RELEASED' ? 'Close Window' : 'Close'}
+            </button>
+
+            <button
+              onClick={() => {
+                alert(`Official Trade Quote & Contract Sheet #${transaction.id.slice(-6)} downloaded for winning bidder ${transaction.buyerName}. Total gross value: ₹${transaction.totalGrossAmount.toLocaleString('en-IN')}`);
+                window.print();
+              }}
+              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>📥 Download Quote PDF</span>
+            </button>
+          </div>
 
           {transaction.currentStep !== 'PAYOUT_RELEASED' && (
             <button

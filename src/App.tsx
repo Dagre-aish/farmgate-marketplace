@@ -228,6 +228,24 @@ export function App() {
     setSelectedListingBidsView(null);
   };
 
+  // Host Complete Bidding Round Handler -> Finalizes Bidding & Sends Quote to Winning Bidder
+  const handleCompleteBiddingRound = (listingId: string, winningBid: Bid) => {
+    // 1. Update listing status to ESCROW_LOCKED
+    setFarmerListings((prevListings) => prevListings.map((list) => {
+      if (list.id === listingId) {
+        return {
+          ...list,
+          status: 'ESCROW_LOCKED',
+          highestBidPricePerQtl: winningBid.bidPricePerQuintal
+        };
+      }
+      return list;
+    }));
+
+    // 2. Open trade settlement & winning quote sheet for winning bidder
+    handleAcceptBid(winningBid);
+  };
+
   const handleRejectBid = (bidId: string) => {
     setBids(bids.filter((b) => b.id !== bidId));
   };
@@ -273,6 +291,7 @@ export function App() {
             onOpenNewListing={() => setShowNewListingModal(true)}
             onSubmitBid={handleSubmitBid}
             onAcceptBid={handleAcceptBid}
+            onCompleteBiddingRound={handleCompleteBiddingRound}
             language={language}
           />
         )}

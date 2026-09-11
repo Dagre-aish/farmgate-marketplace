@@ -37,6 +37,7 @@ interface LiveBiddingPanelProps {
   onOpenNewListing: () => void;
   onSubmitBid: (newBid: Bid) => void;
   onAcceptBid: (bid: Bid) => void;
+  onCompleteBiddingRound?: (listingId: string, winningBid: Bid) => void;
   onWithdrawBid?: (bidId: string) => void;
   language?: AppLanguage;
 }
@@ -51,6 +52,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
   onOpenNewListing,
   onSubmitBid,
   onAcceptBid,
+  onCompleteBiddingRound,
   onWithdrawBid,
   language = 'en'
 }) => {
@@ -308,16 +310,49 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                   </p>
                 </div>
 
-                {/* Accept Bid Button for Farmer */}
-                {highestBid && (
-                  <button
-                    onClick={() => onAcceptBid(highestBid)}
-                    className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 border border-emerald-300"
-                  >
-                    <span>{t.acceptTopBid}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
+                {/* Accept & Finalize Bidding Round Buttons */}
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                  {highestBid && activeListing.status !== 'ESCROW_LOCKED' && activeListing.status !== 'SOLD' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (onCompleteBiddingRound) {
+                            onCompleteBiddingRound(activeListing.id, highestBid);
+                          } else {
+                            onAcceptBid(highestBid);
+                          }
+                          try {
+                            confetti({ particleCount: 80, spread: 80, origin: { y: 0.6 } });
+                          } catch (e) {}
+                        }}
+                        className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 border border-amber-300"
+                      >
+                        <Sparkles className="w-4 h-4 text-slate-950" />
+                        <span>🏆 Complete & Finalize Bidding Round</span>
+                      </button>
+
+                      <button
+                        onClick={() => onAcceptBid(highestBid)}
+                        className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 border border-emerald-300"
+                      >
+                        <span>{t.acceptTopBid}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+
+                  {(activeListing.status === 'ESCROW_LOCKED' || activeListing.status === 'SOLD') && (
+                    <div className="bg-emerald-950 border border-emerald-500/50 p-3 rounded-2xl text-center text-xs">
+                      <span className="text-emerald-400 font-extrabold block flex items-center gap-1.5 justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>🏆 Bidding Round Finalized!</span>
+                      </span>
+                      <span className="text-[11px] text-slate-300 mt-0.5 block">
+                        Last winning bidder (<strong>{highestBid?.bidderName || 'Corporate Winner'}</strong>) received the final quote & trade contract.
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Corporate Bidding Controls */}
