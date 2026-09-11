@@ -85,6 +85,9 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
 
     const result = await analyzeCropImageWithGemini(dataToUse, selectedCommodity.name);
 
+    if (result.detectedCommodityId) {
+      setCommodityId(result.detectedCommodityId);
+    }
     setGrade(result.grade);
     setMoisture(result.moisturePct);
     setForeignMatter(result.foreignMatterPct);
