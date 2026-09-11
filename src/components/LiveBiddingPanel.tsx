@@ -215,16 +215,26 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
           </button>
         </div>
       ) : (
-        <div className="bg-emerald-50 border border-emerald-300 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs">
+        <div className="bg-emerald-50 border border-emerald-300 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-emerald-700 shrink-0" />
             <div>
-              <span className="font-extrabold text-emerald-950 block">🏢 Corporate Buyer Bidding Mode Active</span>
+              <span className="font-extrabold text-emerald-950 block">🏢 Corporate Buyer Bidding & Trade Settlement Active</span>
               <span className="text-[11px] text-emerald-900">
-                Place binding bids backed by escrow. If you change your mind, click <strong>"🚫 Blackout / Opt-Out Bid"</strong> to withdraw your bid so other bidders' time is saved.
+                Place binding bids backed by escrow. Once the bidding round is finalized by the seller, your full 5-step trade contract quote and e-invoice are generated below.
               </span>
             </div>
           </div>
+
+          {highestBid && (
+            <button
+              onClick={() => onAcceptBid(highestBid)}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95 border border-emerald-600"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>📄 View Winning Quote & 5-Step Contract</span>
+            </button>
+          )}
         </div>
       )}
 

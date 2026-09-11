@@ -121,7 +121,7 @@ export const TradeSettlementModal: React.FC<TradeSettlementModalProps> = ({
         {/* 5-Step Stepper Ribbon */}
         <div className="grid grid-cols-5 gap-1 text-center">
           {steps.map((step, idx) => {
-            const isCompleted = idx < currentStepIndex;
+            const isCompleted = idx <= currentStepIndex;
             const isCurrent = idx === currentStepIndex;
             const Icon = step.icon;
 
