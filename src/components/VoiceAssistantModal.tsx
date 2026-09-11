@@ -23,6 +23,7 @@ import {
   isSpeechRecognitionSupported 
 } from '../services/speechService';
 import { processVoiceQuery, VoiceNLPResponse } from '../services/voiceNLPService';
+import { askGeminiAgritechAdvisor } from '../services/geminiService';
 
 interface VoiceAssistantModalProps {
   onClose: () => void;
@@ -83,20 +84,31 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     }
   ];
 
-  const handleProcessAndAnswer = (queryText: string) => {
+  const handleProcessAndAnswer = async (queryText: string) => {
     if (!queryText.trim()) return;
 
     setErrorMessage('');
-    const isHindi = selectedVoiceLang.startsWith('hi') || selectedVoiceLang.startsWith('mr') || selectedVoiceLang.startsWith('pa');
-    const result = processVoiceQuery(queryText, isHindi ? 'hi' : 'en');
-    setLastNLPResult(result);
+    const langCode = selectedVoiceLang.startsWith('hi') ? 'hi' :
+                     selectedVoiceLang.startsWith('mr') ? 'mr' :
+                     selectedVoiceLang.startsWith('pa') ? 'pa' :
+                     selectedVoiceLang.startsWith('te') ? 'te' : 'en';
 
-    const spokenText = isHindi ? result.spokenResponseHindi : result.spokenResponseEnglish;
+    const localNLP = processVoiceQuery(queryText, langCode);
+    
+    // Call Google Gemini AI Service
+    const aiResponseText = await askGeminiAgritechAdvisor(queryText, langCode);
+
+    setLastNLPResult({
+      ...localNLP,
+      spokenResponseHindi: aiResponseText,
+      spokenResponseEnglish: aiResponseText
+    });
+
     setIsSpeakingResponse(true);
-    speakText(spokenText, selectedVoiceLang);
+    speakText(aiResponseText, selectedVoiceLang);
 
-    if (result.detectedCommodityId && onSelectCommodity) {
-      onSelectCommodity(result.detectedCommodityId);
+    if (localNLP.detectedCommodityId && onSelectCommodity) {
+      onSelectCommodity(localNLP.detectedCommodityId);
     }
   };
 
