@@ -1,5 +1,19 @@
-import React, { useState } from 'react';
-import { PlusCircle, Upload, CheckCircle2, ShieldCheck, Sparkles, Scale, Clock, Calendar, Camera, Cpu } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { 
+  PlusCircle, 
+  Upload, 
+  CheckCircle2, 
+  ShieldCheck, 
+  Sparkles, 
+  Scale, 
+  Clock, 
+  Calendar, 
+  Camera, 
+  Cpu, 
+  FileText,
+  Image as ImageIcon,
+  Check
+} from 'lucide-react';
 import { FarmerListing, StorageType } from '../types';
 import { COMMODITIES } from '../data/commodities';
 import { pushListingToFirebase } from '../services/firebaseService';
@@ -31,9 +45,15 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
   const [moisture, setMoisture] = useState<number>(11.2);
   const [foreignMatter, setForeignMatter] = useState<number>(0.8);
 
-  // Gemini AI Vision Assaying State
+  // Crop Photo Upload & Gemini AI Detection State
+  const selectedCommodity = COMMODITIES.find((c) => c.id === commodityId) || COMMODITIES[0];
+  const [uploadedImageBase64, setUploadedImageBase64] = useState<string>('');
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>(selectedCommodity.image);
   const [isScanningAI, setIsScanningAI] = useState<boolean>(false);
   const [aiRemarks, setAiRemarks] = useState<string>('');
+  const [aiDetectionCompleted, setAiDetectionCompleted] = useState<boolean>(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auction Date & Time Slot Settings
   const [auctionEndDate, setAuctionEndDate] = useState<string>(
@@ -42,17 +62,36 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
   const [auctionTimeSlot, setAuctionTimeSlot] = useState<string>('Evening (4 PM - 7 PM)');
   const [auctionDurationHours, setAuctionDurationHours] = useState<number>(48);
 
-  const selectedCommodity = COMMODITIES.find((c) => c.id === commodityId) || COMMODITIES[0];
+  // Handle Photo File Upload
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleRunAIVisionScan = async () => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setUploadedImageBase64(base64String);
+      setImagePreviewUrl(base64String);
+      runGeminiVisionScan(base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Run Gemini Computer Vision Quality Detection on Photo
+  const runGeminiVisionScan = async (base64Data?: string) => {
+    const dataToUse = base64Data || uploadedImageBase64;
     setIsScanningAI(true);
-    const result = await analyzeCropImageWithGemini('', selectedCommodity.name);
+    setAiDetectionCompleted(false);
+
+    const result = await analyzeCropImageWithGemini(dataToUse, selectedCommodity.name);
+
     setGrade(result.grade);
     setMoisture(result.moisturePct);
     setForeignMatter(result.foreignMatterPct);
     setAskingPrice(result.suggestedPricePerQtl);
     setAiRemarks(result.remarks);
     setIsScanningAI(false);
+    setAiDetectionCompleted(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,7 +116,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
         grade,
         moisturePct: moisture,
         foreignMatterPct: foreignMatter,
-        photos: [selectedCommodity.image]
+        photos: [imagePreviewUrl || selectedCommodity.image]
       },
       bidsCount: 0,
       highestBidPricePerQtl: askingPrice,
@@ -97,7 +136,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 my-8 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 my-8 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -118,8 +157,9 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           
+          {/* Farmer Info */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">Farmer Full Name</label>
@@ -173,12 +213,17 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
             </div>
           </div>
 
+          {/* Commodity & Quantity */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">Select Harvest Crop</label>
               <select
                 value={commodityId}
-                onChange={(e) => setCommodityId(e.target.value)}
+                onChange={(e) => {
+                  setCommodityId(e.target.value);
+                  const sel = COMMODITIES.find((c) => c.id === e.target.value);
+                  if (sel && !uploadedImageBase64) setImagePreviewUrl(sel.image);
+                }}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800"
               >
                 {COMMODITIES.map((c) => (
@@ -198,9 +243,125 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
             </div>
           </div>
 
+          {/* 📸 Photo Upload & Gemini AI Computer Vision Assaying Section */}
+          <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-3 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-black text-xs text-emerald-400 flex items-center gap-1.5">
+                  <Cpu className="w-4 h-4 text-emerald-400" />
+                  <span>Google Gemini AI Computer Vision Crop Assayer</span>
+                </span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">
+                  Upload a photo of your grain harvest to run real-time quality & moisture detection
+                </span>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleImageFileChange}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md shrink-0 active:scale-95"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Upload Crop Photo</span>
+              </button>
+            </div>
+
+            {/* Photo Preview & Live AI Detection Overlay */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800 items-center">
+              
+              {/* Left: Crop Image Preview Container */}
+              <div className="relative rounded-xl overflow-hidden border border-slate-700 h-32 bg-slate-900 group">
+                <img
+                  src={imagePreviewUrl}
+                  alt="Harvest Sample"
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Laser Scanning Animation Overlay */}
+                {isScanningAI && (
+                  <div className="absolute inset-0 bg-emerald-500/20 backdrop-blur-xs flex flex-col items-center justify-center space-y-1">
+                    <span className="w-full h-1 bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400"></span>
+                    <span className="text-[10px] font-black text-emerald-300 font-mono animate-bounce bg-slate-950 px-2 py-0.5 rounded">
+                      ANALYZING GRAIN TEXTURE...
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-2 right-2 bg-slate-900/80 text-white p-1.5 rounded-lg text-[10px] hover:bg-slate-800 border border-slate-700 flex items-center gap-1"
+                >
+                  <Upload className="w-3 h-3" />
+                  <span>Change</span>
+                </button>
+              </div>
+
+              {/* Right: AI Computer Vision Detected Specs */}
+              <div className="sm:col-span-2 space-y-2 text-xs">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Gemini AI Vision Detection:
+                  </span>
+                  {aiDetectionCompleted ? (
+                    <span className="text-[10px] font-black text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-600/40 flex items-center gap-1">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span>PASSED</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => runGeminiVisionScan()}
+                      disabled={isScanningAI}
+                      className="text-[10px] font-bold text-amber-400 hover:underline"
+                    >
+                      {isScanningAI ? 'Scanning...' : '▶ Re-run AI Scan'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block font-mono">Moisture %</span>
+                    <span className="text-sm font-black text-emerald-400 font-mono">{moisture}%</span>
+                  </div>
+                  <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block font-mono">Foreign Matter</span>
+                    <span className="text-sm font-black text-amber-400 font-mono">{foreignMatter}%</span>
+                  </div>
+                  <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block font-mono">Milling Grade</span>
+                    <span className="text-xs font-black text-white font-mono bg-emerald-900 px-1.5 py-0.5 rounded mt-0.5 block">
+                      {grade}
+                    </span>
+                  </div>
+                </div>
+
+                {aiRemarks && (
+                  <p className="text-[10px] text-emerald-300 font-medium leading-relaxed bg-emerald-950/60 p-2 rounded-lg border border-emerald-600/30">
+                    ✨ {aiRemarks}
+                  </p>
+                )}
+              </div>
+
+            </div>
+          </div>
+
+          {/* Pricing & Storage Condition */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-slate-700 font-semibold mb-1">Initial Starting Price (₹/qtl)</label>
+              <label className="block text-slate-700 font-semibold mb-1">
+                AI Suggested Reserve Price (₹/qtl)
+              </label>
               <input
                 type="number"
                 value={askingPrice}
@@ -265,66 +426,6 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
                   <option value={48}>48 Hours</option>
                   <option value={72}>72 Hours</option>
                 </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Gemini AI Computer Vision Assaying Button & Specs Box */}
-          <div className="bg-slate-900 text-white p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-black text-xs text-emerald-400 flex items-center gap-1.5">
-                <Cpu className="w-4 h-4 text-emerald-400" />
-                <span>Google Gemini AI Computer Vision Assaying</span>
-              </span>
-              <button
-                type="button"
-                onClick={handleRunAIVisionScan}
-                disabled={isScanningAI}
-                className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-[10px] font-black transition-all flex items-center gap-1 shadow-xs disabled:opacity-50"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span>{isScanningAI ? 'AI Scanning Grain...' : '📸 Run Gemini AI Vision Scan'}</span>
-              </button>
-            </div>
-
-            {aiRemarks && (
-              <div className="p-2 bg-emerald-950/80 rounded-xl border border-emerald-500/40 text-[10px] text-emerald-300 font-medium leading-relaxed">
-                ✨ {aiRemarks}
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 gap-2 text-slate-800">
-              <div>
-                <label className="text-[10px] text-slate-400 block font-semibold mb-0.5">Assay Grade</label>
-                <select
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value as any)}
-                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold"
-                >
-                  <option value="Grade A">Grade A</option>
-                  <option value="Grade B">Grade B</option>
-                  <option value="FAQ">FAQ</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 block font-semibold mb-0.5">Moisture %</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={moisture}
-                  onChange={(e) => setMoisture(Number(e.target.value))}
-                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 block font-semibold mb-0.5">Foreign Matter %</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={foreignMatter}
-                  onChange={(e) => setForeignMatter(Number(e.target.value))}
-                  className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold"
-                />
               </div>
             </div>
           </div>
