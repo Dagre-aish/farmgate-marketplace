@@ -77,9 +77,8 @@ export function analyzeImageCanvasRGB(imageSrc: string): Promise<{ commodityId: 
 
     const img = new Image();
     img.crossOrigin = 'Anonymous';
-    img.src = imageSrc;
 
-    img.onload = () => {
+    const doAnalysis = () => {
       try {
         const canvas = document.createElement('canvas');
         canvas.width = 64;
@@ -108,14 +107,14 @@ export function analyzeImageCanvasRGB(imageSrc: string): Promise<{ commodityId: 
         const avgB = totalB / pixelCount;
         const brightness = (avgR + avgG + avgB) / 3;
 
-        // 1. High Luminosity White / Off-White Rice Grains
-        if (brightness > 150 && Math.abs(avgR - avgG) < 30 && Math.abs(avgG - avgB) < 30) {
+        // 1. High Luminosity White / Cream Grain -> Basmati Rice 1121
+        if (brightness > 140 && Math.abs(avgR - avgG) < 35 && Math.abs(avgG - avgB) < 35) {
           resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
           return;
         }
 
         // 2. Red / Purple Bulb -> Red Onion (Nasik)
-        if (avgR > 105 && (avgR > avgG + 15) && (avgB > avgG || avgR > 130)) {
+        if (avgR > 100 && (avgR > avgG + 15) && (avgB > avgG || avgR > 130)) {
           resolve({ commodityId: 'onion', cropName: 'Red Onion (Nasik)', basePrice: 2450 });
           return;
         }
@@ -139,9 +138,13 @@ export function analyzeImageCanvasRGB(imageSrc: string): Promise<{ commodityId: 
       }
     };
 
-    img.onerror = () => {
-      resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
-    };
+    img.onload = doAnalysis;
+    img.onerror = () => resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+    img.src = imageSrc;
+
+    if (img.complete) {
+      doAnalysis();
+    }
   });
 }
 
@@ -293,7 +296,7 @@ function generateFallbackAIResponse(
   }
 
   if (language === 'te') {
-    return `🌾 **ఫార్మ్‌ਗੇਟ ఏఐ విశ్లేషణ:**\n• గుంటూరు మిర్చి మరియు ధాన్యం మార్కెట్‌లో మద్దతు ధర కంటే ₹300-₹500 ఎక్కువ డిమాండ్ ఉంది.\n• నేరుగా కార్పొరేట్ కొనుగోలుదారుల వేలంలో పాల్గొని గరిష్ట లాభం పొందండి.`;
+    return `🌾 **ఫార్మ్‌గేట్ ఏఐ విశ్లేషణ:**\n• గుంటూరు మిర్చి మరియు ధాన్యం మార్కెట్‌లో మద్దతు ధర కంటే ₹300-₹500 ఎక్కువ డిమాండ్ ఉంది.\n• నేరుగా కార్పొరేట్ కొనుగోలుదారుల వేలంలో పాల్గొని గరిష్ట లాభం పొందండి.`;
   }
 
   // English Fallback
