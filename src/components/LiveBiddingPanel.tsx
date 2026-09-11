@@ -239,9 +239,16 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
             <div className="bg-slate-900 text-white p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider animate-pulse">
-                    LIVE AUCTION
-                  </span>
+                  {activeListing.status === 'SOLD' || activeListing.status === 'ESCROW_LOCKED' ? (
+                    <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-white" />
+                      <span>🔴 BIDDING CLOSED & FINALIZED</span>
+                    </span>
+                  ) : (
+                    <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                      LIVE AUCTION
+                    </span>
+                  )}
                   <span className="text-slate-400 text-xs font-mono">Lot ID: #{activeListing.id}</span>
                   {activeListing.auctionTimeSlot && (
                     <span className="bg-slate-800 text-emerald-400 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-slate-700">
@@ -259,8 +266,12 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
               <div className="bg-slate-950 border border-slate-800 px-4 py-2 rounded-2xl flex items-center gap-3">
                 <Clock className="w-5 h-5 text-rose-500 animate-spin" />
                 <div>
-                  <span className="text-[10px] text-slate-400 font-mono block uppercase leading-tight">{t.closingIn}</span>
-                  <span className="text-lg font-black text-rose-400 font-mono leading-none">{formatTimer(timeLeftSeconds)}</span>
+                  <span className="text-[10px] text-slate-400 font-mono block uppercase leading-tight">
+                    {activeListing.status === 'SOLD' || activeListing.status === 'ESCROW_LOCKED' ? 'Status' : t.closingIn}
+                  </span>
+                  <span className="text-lg font-black text-rose-400 font-mono leading-none">
+                    {activeListing.status === 'SOLD' || activeListing.status === 'ESCROW_LOCKED' ? '00:00 - CLOSED' : formatTimer(timeLeftSeconds)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -355,8 +366,60 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                 </div>
               </div>
 
-              {/* Corporate Bidding Controls */}
-              {userRole === 'BUYER' ? (
+              {/* Corporate Bidding Controls / Closed Auction Quote Card */}
+              {activeListing.status === 'SOLD' || activeListing.status === 'ESCROW_LOCKED' ? (
+                <div className="bg-gradient-to-br from-slate-900 to-emerald-950 p-6 rounded-2xl border border-emerald-500/40 text-white space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-amber-400" />
+                      <h4 className="font-extrabold text-sm text-white">
+                        🏢 Official Corporate Trade Quote & e-Contract
+                      </h4>
+                    </div>
+                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-500/40">
+                      100% ESCROW CLEARED
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-300">
+                    Bidding is officially closed for this lot. The final trade quote & escrow contract has been transmitted to the winning buyer <strong>{highestBid?.bidderName || 'Enterprise Buyer'}</strong>.
+                  </p>
+
+                  {/* Financial Quote Table */}
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-2 font-mono text-xs">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Enterprise Winning Buyer:</span>
+                      <span className="font-bold text-white">{highestBid?.bidderName || 'Enterprise Buyer'}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Farmer / Producer:</span>
+                      <span className="font-bold text-white">{activeListing.farmerName}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Gross Contract Value ({activeListing.quantityQuintals} qtl @ ₹{currentTopPrice}/qtl):</span>
+                      <span className="font-bold text-emerald-400">₹{(currentTopPrice * activeListing.quantityQuintals).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-500">
+                      <span>Platform Take Rate (1.5% Commission):</span>
+                      <span className="text-rose-400">-₹{Math.round(currentTopPrice * activeListing.quantityQuintals * 0.015).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-amber-400 pt-2 border-t border-slate-800 text-sm">
+                      <span>Net Realization:</span>
+                      <span className="text-emerald-300 font-mono">₹{Math.round(currentTopPrice * activeListing.quantityQuintals * 0.985).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+
+                  {highestBid && (
+                    <button
+                      onClick={() => onAcceptBid(highestBid)}
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 border border-emerald-300"
+                    >
+                      <FileCheck2 className="w-4 h-4 text-slate-950" />
+                      <span>📄 Open & Download Full Trade Quote & Invoice</span>
+                    </button>
+                  )}
+                </div>
+              ) : userRole === 'BUYER' ? (
                 <div className="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5">
@@ -544,9 +607,16 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                     }`}>
                       #{listing.id}
                     </span>
-                    <span className="text-[10px] font-mono font-bold text-amber-400">
-                      {lotBids.length} Active Bids
-                    </span>
+                    {listing.status === 'SOLD' || listing.status === 'ESCROW_LOCKED' ? (
+                      <span className="text-[10px] font-mono font-black text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-700/50 flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-rose-400" />
+                        <span>CLOSED</span>
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono font-bold text-amber-400">
+                        {lotBids.length} Active Bids
+                      </span>
+                    )}
                   </div>
 
                   <h4 className="font-extrabold text-sm mb-1">{listing.commodityName}</h4>

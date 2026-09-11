@@ -169,6 +169,15 @@ export function App() {
   const handleUpdateEscrowStep = (newStep: EscrowStep) => {
     if (!activeEscrowTransaction) return;
 
+    if (newStep === 'PAYOUT_RELEASED' && activeEscrowTransaction.listingId) {
+      setFarmerListings((prevListings) => prevListings.map((list) => {
+        if (list.id === activeEscrowTransaction.listingId) {
+          return { ...list, status: 'SOLD' };
+        }
+        return list;
+      }));
+    }
+
     setActiveEscrowTransaction({
       ...activeEscrowTransaction,
       currentStep: newStep,
