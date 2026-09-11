@@ -207,7 +207,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({
                     <div>
                       <h3 className="font-bold text-sm text-slate-900">{rfq.buyerName}</h3>
                       <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.2 rounded border border-emerald-300">
-                        {rfq.kycTier} Verified
+                        Enterprise Verified
                       </span>
                     </div>
                   </div>
@@ -220,7 +220,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-sans">{t.requiredLot}:</span>
-                    <strong className="text-slate-800">{rfq.quantityQuintals} Quintals</strong>
+                    <strong className="text-slate-800">{rfq.requiredQuantityQuintals} Quintals</strong>
                   </div>
                   <div className="flex justify-between font-bold text-emerald-700">
                     <span className="font-sans text-slate-500">{t.targetPrice}:</span>
@@ -233,7 +233,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({
                 </div>
 
                 <div className="text-[11px] text-slate-500 space-y-1">
-                  <div>Quality Specs: <strong className="text-slate-700">Moisture ≤ {rfq.qualitySpecs.maxMoisturePct}% • Foreign Matter ≤ {rfq.qualitySpecs.maxForeignMatterPct}%</strong></div>
+                  <div>Quality Specs: <strong className="text-slate-700">Moisture ≤ {rfq.qualityRequirements?.maxMoisturePct ?? 12.0}% • Foreign Matter ≤ {rfq.qualityRequirements?.maxForeignMatterPct ?? 1.0}%</strong></div>
                   <div>Payment Terms: <strong className="text-emerald-700">{rfq.paymentTerms}</strong></div>
                 </div>
               </div>
@@ -242,7 +242,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({
                 onClick={() => onInitiateEscrow({
                   rfq,
                   agreedPrice: rfq.targetPricePerQuintal,
-                  quantity: rfq.quantityQuintals,
+                  quantity: rfq.requiredQuantityQuintals,
                   farmerName: 'Rameshwar Patidar',
                   buyerName: rfq.buyerName
                 })}
