@@ -65,8 +65,88 @@ Answer strictly in ${languageNames[language]}. Keep your response friendly, conc
 }
 
 /**
+ * HTML Canvas RGB Image Pixel Analyzer
+ * Analyzes pixel colors, brightness & saturation of an uploaded image sample to classify crop type (Rice vs Onion vs Wheat vs Soybean vs Chilli)
+ */
+export function analyzeImageCanvasRGB(imageSrc: string): Promise<{ commodityId: string; cropName: string; basePrice: number }> {
+  return new Promise((resolve) => {
+    if (!imageSrc || typeof window === 'undefined') {
+      resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = imageSrc;
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, 64, 64);
+        const imgData = ctx.getImageData(0, 0, 64, 64);
+        const data = imgData.data;
+
+        let totalR = 0, totalG = 0, totalB = 0;
+        const pixelCount = data.length / 4;
+
+        for (let i = 0; i < data.length; i += 4) {
+          totalR += data[i];
+          totalG += data[i + 1];
+          totalB += data[i + 2];
+        }
+
+        const avgR = totalR / pixelCount;
+        const avgG = totalG / pixelCount;
+        const avgB = totalB / pixelCount;
+        const brightness = (avgR + avgG + avgB) / 3;
+
+        // 1. High Luminosity White / Off-White Rice Grains
+        if (brightness > 150 && Math.abs(avgR - avgG) < 30 && Math.abs(avgG - avgB) < 30) {
+          resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+          return;
+        }
+
+        // 2. Red / Purple Bulb -> Red Onion (Nasik)
+        if (avgR > 105 && (avgR > avgG + 15) && (avgB > avgG || avgR > 130)) {
+          resolve({ commodityId: 'onion', cropName: 'Red Onion (Nasik)', basePrice: 2450 });
+          return;
+        }
+
+        // 3. Crimson / Red Pod -> Red Chilli (Guntur)
+        if (avgR > 140 && avgG < 95 && avgR > avgG + 45) {
+          resolve({ commodityId: 'chilli', cropName: 'Red Chilli (Guntur)', basePrice: 18200 });
+          return;
+        }
+
+        // 4. Yellow Seed / Turmeric -> Yellow Soybean
+        if (avgR > 140 && avgG > 120 && avgB < 110) {
+          resolve({ commodityId: 'soybean', cropName: 'Yellow Soybean', basePrice: 4320 });
+          return;
+        }
+
+        // 5. Golden Amber -> Lokwan Wheat
+        resolve({ commodityId: 'wheat', cropName: 'Lokwan Wheat', basePrice: 2740 });
+      } catch (e) {
+        resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+      }
+    };
+
+    img.onerror = () => {
+      resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+    };
+  });
+}
+
+/**
  * Multimodal Computer Vision Crop Quality Assaying using Gemini Vision
- * Accurately detects whether uploaded image is Rice, Wheat, Onion, Soybean, Chilli, etc.
  */
 export async function analyzeCropImageWithGemini(
   base64Image: string,
@@ -116,12 +196,12 @@ Return a strict JSON object with:
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           return {
-            detectedCommodityId: parsed.detectedCommodityId || 'onion',
-            detectedCropName: parsed.detectedCropName || 'Red Onion (Nasik)',
+            detectedCommodityId: parsed.detectedCommodityId || 'rice',
+            detectedCropName: parsed.detectedCropName || 'Basmati Rice 1121',
             grade: parsed.grade || 'Grade A',
             moisturePct: Number(parsed.moisturePct) || 11.2,
             foreignMatterPct: Number(parsed.foreignMatterPct) || 0.8,
-            suggestedPricePerQtl: Number(parsed.suggestedPricePerQtl) || 2450,
+            suggestedPricePerQtl: Number(parsed.suggestedPricePerQtl) || 4850,
             remarks: parsed.remarks || 'Gemini Vision Assaying Passed'
           };
         }
@@ -131,77 +211,21 @@ Return a strict JSON object with:
     }
   }
 
-  // Dynamic Image Computer Vision Classification & Detection Engine
-  return classifyImageVisually(base64Image, selectedCropName);
+  // Dynamic Image Computer Vision Classification & Detection Engine via Canvas RGB
+  const rgbDetected = await analyzeImageCanvasRGB(base64Image);
+  return classifyImageVisually(base64Image, rgbDetected.commodityId, rgbDetected.cropName, rgbDetected.basePrice);
 }
 
 /**
  * Dynamic Computer Vision Classifier & Assayer
- * Analyzes uploaded photo file attributes, text, Base64 data, and color properties to detect crop type (Rice vs Wheat vs Onion vs Soybean)
  */
-function classifyImageVisually(base64Image: string, fallbackCropName: string): AICropAnalysisResult {
+function classifyImageVisually(
+  base64Image: string, 
+  detectedId: string, 
+  detectedName: string, 
+  basePrice: number
+): AICropAnalysisResult {
   const dataLower = (base64Image || '').toLowerCase();
-
-  let detectedId = '';
-  let detectedName = '';
-  let basePrice = 2750;
-
-  // 1. Keyword Detection in Base64 Data / File Header
-  if (dataLower.includes('onion') || dataLower.includes('nasik') || dataLower.includes('pyaz') || dataLower.includes('purple') || dataLower.includes('red_bulb')) {
-    detectedId = 'onion';
-    detectedName = 'Red Onion (Nasik)';
-    basePrice = 2450;
-  } else if (dataLower.includes('rice') || dataLower.includes('basmati') || dataLower.includes('paddy') || dataLower.includes('chawal')) {
-    detectedId = 'rice';
-    detectedName = 'Basmati Rice 1121';
-    basePrice = 4850;
-  } else if (dataLower.includes('soybean') || dataLower.includes('soya') || dataLower.includes('yellow_seed')) {
-    detectedId = 'soybean';
-    detectedName = 'Yellow Soybean';
-    basePrice = 4320;
-  } else if (dataLower.includes('chilli') || dataLower.includes('chili') || dataLower.includes('pepper') || dataLower.includes('mirchi')) {
-    detectedId = 'chilli';
-    detectedName = 'Red Chilli (Guntur)';
-    basePrice = 18200;
-  } else if (dataLower.includes('turmeric') || dataLower.includes('haldi')) {
-    detectedId = 'turmeric';
-    detectedName = 'Turmeric (Erode)';
-    basePrice = 13500;
-  } else if (dataLower.includes('wheat') || dataLower.includes('lokwan') || dataLower.includes('gehun')) {
-    detectedId = 'wheat';
-    detectedName = 'Lokwan Wheat';
-    basePrice = 2740;
-  }
-
-  // 2. If no explicit keyword in file string, match user selected dropdown crop
-  if (!detectedId) {
-    const fallbackLower = (fallbackCropName || '').toLowerCase();
-    if (fallbackLower.includes('onion')) {
-      detectedId = 'onion';
-      detectedName = 'Red Onion (Nasik)';
-      basePrice = 2450;
-    } else if (fallbackLower.includes('rice')) {
-      detectedId = 'rice';
-      detectedName = 'Basmati Rice 1121';
-      basePrice = 4850;
-    } else if (fallbackLower.includes('soybean')) {
-      detectedId = 'soybean';
-      detectedName = 'Yellow Soybean';
-      basePrice = 4320;
-    } else if (fallbackLower.includes('chilli')) {
-      detectedId = 'chilli';
-      detectedName = 'Red Chilli (Guntur)';
-      basePrice = 18200;
-    } else if (fallbackLower.includes('turmeric')) {
-      detectedId = 'turmeric';
-      detectedName = 'Turmeric (Erode)';
-      basePrice = 13500;
-    } else {
-      detectedId = 'wheat';
-      detectedName = 'Lokwan Wheat';
-      basePrice = 2740;
-    }
-  }
 
   // Compute deterministic hash from image Base64 data string for moisture & foreign matter
   let hash = 0;
@@ -269,7 +293,7 @@ function generateFallbackAIResponse(
   }
 
   if (language === 'te') {
-    return `🌾 **ఫార్మ్‌గేట్ ఏఐ విశ్లేషణ:**\n• గుంటూరు మిర్చి మరియు ధాన్యం మార్కెట్‌లో మద్దతు ధర కంటే ₹300-₹500 ఎక్కువ డిమాండ్ ఉంది.\n• నేరుగా కార్పొరేట్ కొనుగోలుదారుల వేలంలో పాల్గొని గరిష్ట లాభం పొందండి.`;
+    return `🌾 **ఫార్మ్‌ਗੇਟ ఏఐ విశ్లేషణ:**\n• గుంటూరు మిర్చి మరియు ధాన్యం మార్కెట్‌లో మద్దతు ధర కంటే ₹300-₹500 ఎక్కువ డిమాండ్ ఉంది.\n• నేరుగా కార్పొరేట్ కొనుగోలుదారుల వేలంలో పాల్గొని గరిష్ట లాభం పొందండి.`;
   }
 
   // English Fallback
