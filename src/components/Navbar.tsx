@@ -39,6 +39,7 @@ interface NavbarProps {
   onOpenVoice: () => void;
   onOpenPitch: () => void;
   onOpenNewListing: () => void;
+  onOpenQuoteSheet?: () => void;
   mandiRecords: MandiPriceRecord[];
 }
 
@@ -57,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenVoice,
   onOpenPitch,
   onOpenNewListing,
+  onOpenQuoteSheet,
   mandiRecords
 }) => {
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
@@ -178,6 +180,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Action Utilities */}
           <div className="flex items-center gap-2">
             
+            {/* Quick Trade Quote & Contract Sheet Button */}
+            {onOpenQuoteSheet && (
+              <button
+                onClick={onOpenQuoteSheet}
+                className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all flex items-center gap-1.5 shadow-sm border border-amber-300 active:scale-95"
+                title="View Winning Corporate Trade Quote Sheet & Escrow Contract"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                <span className="hidden sm:inline">📄 Trade Quote Sheet</span>
+              </button>
+            )}
+
             {/* Multilingual Speech Voice Search Button */}
             <button
               onClick={onOpenVoice}

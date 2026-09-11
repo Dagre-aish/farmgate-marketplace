@@ -284,6 +284,13 @@ export function App() {
             setShowNewListingModal(true);
           }
         }}
+        onOpenQuoteSheet={() => {
+          if (bids.length > 0) {
+            handleAcceptBid(bids[0]);
+          } else {
+            alert('No active trade contract yet. Place a corporate bid or accept a bid to view the 5-step quote contract sheet.');
+          }
+        }}
         mandiRecords={mandiRecords}
       />
 

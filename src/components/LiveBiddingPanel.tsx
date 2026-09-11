@@ -172,8 +172,8 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
             </p>
           </div>
 
-          {/* Quick Real-Time Metrics */}
-          <div className="flex items-center gap-3 bg-slate-900/90 p-3 rounded-2xl border border-slate-800 shrink-0">
+          {/* Quick Real-Time Metrics & View Quote Button */}
+          <div className="flex flex-wrap items-center gap-3 bg-slate-900/90 p-3 rounded-2xl border border-slate-800 shrink-0">
             <div className="text-center px-3 border-r border-slate-800">
               <span className="text-[10px] text-slate-400 block font-mono">{t.totalBids}</span>
               <span className="text-lg font-black text-emerald-400 font-mono">{validActiveBids.length} Active</span>
@@ -182,7 +182,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
               <span className="text-[10px] text-slate-400 block font-mono">{t.escrowLocked}</span>
               <span className="text-lg font-black text-amber-400 font-mono">₹4.2 Cr</span>
             </div>
-            <div className="text-center px-3">
+            <div className="text-center px-3 border-r border-slate-800">
               <span className="text-[10px] text-emerald-400 font-bold block flex items-center gap-1">
                 <Cloud className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Firebase Sync</span>
@@ -191,6 +191,23 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                 LIVE
               </span>
             </div>
+
+            {/* Always-Visible View Trade Quote Button */}
+            <button
+              onClick={() => {
+                if (highestBid) {
+                  onAcceptBid(highestBid);
+                } else if (bids.length > 0) {
+                  onAcceptBid(bids[0]);
+                } else {
+                  alert('No active trade contract yet. Place a corporate bid or accept a bid to generate the 5-step trade contract sheet.');
+                }
+              }}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2.5 rounded-xl text-xs transition-all shadow-lg flex items-center gap-2 border border-amber-300 shrink-0 active:scale-95 ml-1"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950" />
+              <span>📄 View Trade Quote Sheet</span>
+            </button>
           </div>
         </div>
       </div>
