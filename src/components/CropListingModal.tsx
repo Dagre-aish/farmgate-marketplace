@@ -12,7 +12,9 @@ import {
   Cpu, 
   FileText,
   Image as ImageIcon,
-  Check
+  Check,
+  Zap,
+  TrendingUp
 } from 'lucide-react';
 import { FarmerListing, StorageType } from '../types';
 import { COMMODITIES } from '../data/commodities';
@@ -51,6 +53,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string>(selectedCommodity.image);
   const [isScanningAI, setIsScanningAI] = useState<boolean>(false);
   const [aiRemarks, setAiRemarks] = useState<string>('');
+  const [aiRecommendation, setAiRecommendation] = useState<'SELL_NOW' | 'HOLD_15_DAYS' | 'PLEDGE_WAREHOUSE'>('SELL_NOW');
   const [aiDetectionCompleted, setAiDetectionCompleted] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -85,13 +88,11 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
 
     const result = await analyzeCropImageWithGemini(dataToUse, selectedCommodity.name);
 
-    if (result.detectedCommodityId) {
-      setCommodityId(result.detectedCommodityId);
-    }
     setGrade(result.grade);
     setMoisture(result.moisturePct);
     setForeignMatter(result.foreignMatterPct);
     setAskingPrice(result.suggestedPricePerQtl);
+    setAiRecommendation(result.recommendation || 'SELL_NOW');
     setAiRemarks(result.remarks);
     setIsScanningAI(false);
     setAiDetectionCompleted(true);
@@ -246,16 +247,16 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
             </div>
           </div>
 
-          {/* 📸 Photo Upload & Gemini AI Computer Vision Assaying Section */}
+          {/* 📸 Photo Upload & Gemini AI Physical Assaying & Sell vs Hold Section */}
           <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-3 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
                 <span className="font-black text-xs text-emerald-400 flex items-center gap-1.5">
                   <Cpu className="w-4 h-4 text-emerald-400" />
-                  <span>Google Gemini AI Computer Vision Crop Assayer</span>
+                  <span>Google Gemini AI Digital Spectroscopy Assayer</span>
                 </span>
                 <span className="text-[10px] text-slate-400 block mt-0.5">
-                  Upload a photo of your grain harvest to run real-time quality & moisture detection
+                  Upload crop photo to scan moisture %, foreign matter & sell/hold recommendation
                 </span>
               </div>
 
@@ -294,7 +295,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
                   <div className="absolute inset-0 bg-emerald-500/20 backdrop-blur-xs flex flex-col items-center justify-center space-y-1">
                     <span className="w-full h-1 bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400"></span>
                     <span className="text-[10px] font-black text-emerald-300 font-mono animate-bounce bg-slate-950 px-2 py-0.5 rounded">
-                      ANALYZING GRAIN TEXTURE...
+                      SCANNING MOISTURE & QUALITY...
                     </span>
                   </div>
                 )}
@@ -309,16 +310,16 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
                 </button>
               </div>
 
-              {/* Right: AI Computer Vision Detected Specs */}
+              {/* Right: AI Computer Vision Detected Physical Specs & Sell vs Hold */}
               <div className="sm:col-span-2 space-y-2 text-xs">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Gemini AI Vision Detection:
+                    Physical Quality Assaying:
                   </span>
                   {aiDetectionCompleted ? (
                     <span className="text-[10px] font-black text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-600/40 flex items-center gap-1">
                       <Check className="w-3 h-3 text-emerald-400" />
-                      <span>PASSED</span>
+                      <span>ASSAY PASSED</span>
                     </span>
                   ) : (
                     <button
@@ -327,7 +328,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
                       disabled={isScanningAI}
                       className="text-[10px] font-bold text-amber-400 hover:underline"
                     >
-                      {isScanningAI ? 'Scanning...' : '▶ Re-run AI Scan'}
+                      {isScanningAI ? 'Scanning...' : '▶ Re-run AI Assayer'}
                     </button>
                   )}
                 </div>
@@ -342,11 +343,30 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
                     <span className="text-sm font-black text-amber-400 font-mono">{foreignMatter}%</span>
                   </div>
                   <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
-                    <span className="text-[9px] text-slate-400 block font-mono">Milling Grade</span>
+                    <span className="text-[9px] text-slate-400 block font-mono">Quality Grade</span>
                     <span className="text-xs font-black text-white font-mono bg-emerald-900 px-1.5 py-0.5 rounded mt-0.5 block">
                       {grade}
                     </span>
                   </div>
+                </div>
+
+                {/* AI Actionable Sell vs Hold Recommendation Badge */}
+                <div className="flex items-center justify-between bg-slate-900 p-2 rounded-lg border border-slate-800">
+                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3 text-amber-400" />
+                    <span>AI Advisory:</span>
+                  </span>
+                  {aiRecommendation === 'SELL_NOW' ? (
+                    <span className="bg-rose-500 text-white font-black px-2 py-0.5 rounded text-[10px] uppercase flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-300" />
+                      <span>⚡ SELL NOW (High Immediate Demand)</span>
+                    </span>
+                  ) : (
+                    <span className="bg-emerald-500 text-slate-950 font-black px-2 py-0.5 rounded text-[10px] uppercase flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-950" />
+                      <span>⏳ HOLD 15 DAYS (+12% Gain Expected)</span>
+                    </span>
+                  )}
                 </div>
 
                 {aiRemarks && (
@@ -363,7 +383,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                AI Suggested Reserve Price (₹/qtl)
+                AI Reserve Bidding Price (₹/qtl)
               </label>
               <input
                 type="number"
