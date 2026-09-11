@@ -66,12 +66,13 @@ Answer strictly in ${languageNames[language]}. Keep your response friendly, conc
 
 /**
  * HTML Canvas RGB Image Pixel Analyzer
- * Analyzes pixel colors, brightness & saturation of an uploaded image sample to classify crop type (Rice vs Onion vs Wheat vs Soybean vs Chilli)
+ * Analyzes pixel colors, brightness & saturation of an uploaded image sample to classify crop type
+ * Supports: Grains (Rice, Wheat, Maize), Veggies (Onion, Tomato, Potato), Oilseeds (Soybean, Mustard), Cash Crops (Cotton), Spices (Chilli)
  */
 export function analyzeImageCanvasRGB(imageSrc: string): Promise<{ commodityId: string; cropName: string; basePrice: number }> {
   return new Promise((resolve) => {
     if (!imageSrc || typeof window === 'undefined') {
-      resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+      resolve({ commodityId: 'paddy_basmati', cropName: 'Basmati Paddy (1121 / Pusa)', basePrice: 4850 });
       return;
     }
 
@@ -85,7 +86,7 @@ export function analyzeImageCanvasRGB(imageSrc: string): Promise<{ commodityId: 
         canvas.height = 64;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+          resolve({ commodityId: 'paddy_basmati', cropName: 'Basmati Paddy (1121 / Pusa)', basePrice: 4850 });
           return;
         }
 
@@ -107,39 +108,63 @@ export function analyzeImageCanvasRGB(imageSrc: string): Promise<{ commodityId: 
         const avgB = totalB / pixelCount;
         const brightness = (avgR + avgG + avgB) / 3;
 
-        // 1. High Luminosity White / Cream Grain -> Basmati Rice 1121
-        if (brightness > 140 && Math.abs(avgR - avgG) < 35 && Math.abs(avgG - avgB) < 35) {
-          resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+        // 1. Pure Fluffy White -> Cotton (Khandwa Long Staple)
+        if (brightness > 210 && Math.abs(avgR - avgG) < 15 && Math.abs(avgG - avgB) < 15) {
+          resolve({ commodityId: 'cotton', cropName: 'Cotton (Medium / Long Staple)', basePrice: 7120 });
           return;
         }
 
-        // 2. Red / Purple Bulb -> Red Onion (Nasik)
-        if (avgR > 100 && (avgR > avgG + 15) && (avgB > avgG || avgR > 130)) {
-          resolve({ commodityId: 'onion', cropName: 'Red Onion (Nasik)', basePrice: 2450 });
+        // 2. High Brightness White / Cream Grain -> Basmati Rice 1121
+        if (brightness > 145 && Math.abs(avgR - avgG) < 30 && Math.abs(avgG - avgB) < 30) {
+          resolve({ commodityId: 'paddy_basmati', cropName: 'Basmati Paddy (1121 / Pusa)', basePrice: 4850 });
           return;
         }
 
-        // 3. Crimson / Red Pod -> Red Chilli (Guntur)
-        if (avgR > 140 && avgG < 95 && avgR > avgG + 45) {
-          resolve({ commodityId: 'chilli', cropName: 'Red Chilli (Guntur)', basePrice: 18200 });
+        // 3. Bright Red / Scarlet Fruit -> Red Tomato
+        if (avgR > 160 && avgG < 100 && avgB < 90 && avgR > avgG + 60) {
+          resolve({ commodityId: 'tomato', cropName: 'Tomato (Hybrid / Desi)', basePrice: 2100 });
           return;
         }
 
-        // 4. Yellow Seed / Turmeric -> Yellow Soybean
-        if (avgR > 140 && avgG > 120 && avgB < 110) {
-          resolve({ commodityId: 'soybean', cropName: 'Yellow Soybean', basePrice: 4320 });
+        // 4. Crimson / Red Pod -> Red Chilli (Guntur)
+        if (avgR > 135 && avgG < 90 && avgR > avgG + 45) {
+          resolve({ commodityId: 'chilli_red', cropName: 'Red Chilli (Guntur Teja / Byadgi)', basePrice: 16500 });
           return;
         }
 
-        // 5. Golden Amber -> Lokwan Wheat
-        resolve({ commodityId: 'wheat', cropName: 'Lokwan Wheat', basePrice: 2740 });
+        // 5. Red / Purple Bulb -> Red Onion (Nasik)
+        if (avgR > 100 && (avgR > avgG + 15) && (avgB > avgG || avgR > 125)) {
+          resolve({ commodityId: 'onion', cropName: 'Onion (Red / Nasik)', basePrice: 2450 });
+          return;
+        }
+
+        // 6. Bright Yellow Seeds / Corn -> Yellow Maize / Soybean
+        if (avgR > 160 && avgG > 140 && avgB < 110) {
+          resolve({ commodityId: 'maize', cropName: 'Maize / Corn (Feed Grade & Food Grade)', basePrice: 2250 });
+          return;
+        }
+
+        // 7. Pale Yellow Legumes -> Yellow Soybean
+        if (avgR > 135 && avgG > 115 && avgB < 110) {
+          resolve({ commodityId: 'soybean', cropName: 'Soybean (Yellow)', basePrice: 4890 });
+          return;
+        }
+
+        // 8. Brown Tubers / Potato
+        if (avgR > 120 && avgG > 90 && avgB < 80 && Math.abs(avgR - avgG) > 20) {
+          resolve({ commodityId: 'potato', cropName: 'Potato (Jyoti / Pukhraj)', basePrice: 1650 });
+          return;
+        }
+
+        // 9. Golden Amber -> Wheat (Sharbati / Lokwan)
+        resolve({ commodityId: 'wheat', cropName: 'Wheat (Sharbati / Lokwan)', basePrice: 2740 });
       } catch (e) {
-        resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+        resolve({ commodityId: 'paddy_basmati', cropName: 'Basmati Paddy (1121 / Pusa)', basePrice: 4850 });
       }
     };
 
     img.onload = doAnalysis;
-    img.onerror = () => resolve({ commodityId: 'rice', cropName: 'Basmati Rice 1121', basePrice: 4850 });
+    img.onerror = () => resolve({ commodityId: 'paddy_basmati', cropName: 'Basmati Paddy (1121 / Pusa)', basePrice: 4850 });
     img.src = imageSrc;
 
     if (img.complete) {
@@ -160,11 +185,11 @@ export async function analyzeCropImageWithGemini(
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
       const promptText = `Examine this agricultural crop/grain sample photo closely. 
-Identify the exact crop type (e.g. Rice/Basmati Rice, Wheat, Red Onion, Yellow Soybean, Red Chilli, Turmeric, Chana).
+Identify the exact crop type (e.g. Rice/Basmati Rice, Wheat, Red Onion, Yellow Soybean, Red Chilli, Turmeric, Tomato, Potato, Cotton, Maize).
 Return a strict JSON object with:
 {
-  "detectedCommodityId": "rice" | "wheat" | "onion" | "soybean" | "chilli" | "turmeric" | "gram",
-  "detectedCropName": "Basmati Rice 1121" | "Lokwan Wheat" | "Red Onion (Nasik)" | "Yellow Soybean" | "Red Chilli (Guntur)",
+  "detectedCommodityId": "paddy_basmati" | "wheat" | "onion" | "soybean" | "chilli_red" | "tomato" | "potato" | "cotton" | "maize",
+  "detectedCropName": "Basmati Paddy (1121 / Pusa)" | "Wheat (Sharbati / Lokwan)" | "Onion (Red / Nasik)" | "Soybean (Yellow)" | "Tomato (Hybrid / Desi)" | "Potato (Jyoti / Pukhraj)" | "Cotton (Medium / Long Staple)",
   "grade": "Grade A" | "Grade B" | "FAQ",
   "moisturePct": number (e.g. 11.2),
   "foreignMatterPct": number (e.g. 0.8),
@@ -199,8 +224,8 @@ Return a strict JSON object with:
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           return {
-            detectedCommodityId: parsed.detectedCommodityId || 'rice',
-            detectedCropName: parsed.detectedCropName || 'Basmati Rice 1121',
+            detectedCommodityId: parsed.detectedCommodityId || 'paddy_basmati',
+            detectedCropName: parsed.detectedCropName || 'Basmati Paddy (1121 / Pusa)',
             grade: parsed.grade || 'Grade A',
             moisturePct: Number(parsed.moisturePct) || 11.2,
             foreignMatterPct: Number(parsed.foreignMatterPct) || 0.8,
@@ -296,7 +321,7 @@ function generateFallbackAIResponse(
   }
 
   if (language === 'te') {
-    return `🌾 **ఫార్మ్‌గేట్ ఏఐ విశ్లేషణ:**\n• గుంటూరు మిర్చి మరియు ధాన్యం మార్కెట్‌లో మద్దతు ధర కంటే ₹300-₹500 ఎక్కువ డిమాండ్ ఉంది.\n• నేరుగా కార్పొరేట్ కొనుగోలుదారుల వేలంలో పాల్గొని గరిష్ట లాభం పొందండి.`;
+    return `🌾 **ఫార్మ్‌ਗੇట్ ఏఐ విశ్లేషణ:**\n• గుంటూరు మిర్చి మరియు ధాన్యం మార్కెట్‌లో మద్దతు ధర కంటే ₹300-₹500 ఎక్కువ డిమాండ్ ఉంది.\n• నేరుగా కార్పొరేట్ కొనుగోలుదారుల వేలంలో పాల్గొని గరిష్ట లాਭం పొందండి.`;
   }
 
   // English Fallback
