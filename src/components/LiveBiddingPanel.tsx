@@ -74,6 +74,22 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
     ? validActiveBids.reduce((prev, curr) => (curr.bidPricePerQuintal > prev.bidPricePerQuintal ? curr : prev))
     : null;
 
+  const effectiveWinningBid: Bid = highestBid || {
+    id: `bid_effective_${activeListing.id}`,
+    listingId: activeListing.id,
+    commodityName: activeListing.commodityName,
+    bidderId: 'buyer_itc',
+    bidderName: 'ITC Agri Business Division (e-Choupal 4.0)',
+    bidderLogo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=200&q=80',
+    bidderKycTier: 'TIER_1_VERIFIED',
+    bidPricePerQuintal: activeListing.highestBidPricePerQtl || activeListing.askingPricePerQuintal,
+    bidQuantityQuintals: activeListing.quantityQuintals,
+    deliveryTerms: 'Direct Farmgate Pick-up (Buyer Freight Guaranteed)',
+    paymentTerms: '100% Digital Escrow Locked',
+    status: 'PENDING',
+    createdAt: 'Just Now'
+  };
+
   const currentTopPrice = highestBid ? highestBid.bidPricePerQuintal : activeListing.askingPricePerQuintal;
   const [customBidInput, setCustomBidInput] = useState<number>(currentTopPrice + 20);
 
@@ -224,12 +240,21 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
               </span>
             </div>
           </div>
-          <button
-            onClick={onOpenNewListing}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95"
-          >
-            <span>🌾 + List My Crop Lot for Auction</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => onAcceptBid(effectiveWinningBid)}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95 border border-amber-300"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950" />
+              <span>📄 View Trade Quote & 5-Step Contract</span>
+            </button>
+            <button
+              onClick={onOpenNewListing}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95"
+            >
+              <span>🌾 + List My Crop Lot for Auction</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-emerald-50 border border-emerald-300 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 text-xs shadow-xs">
@@ -243,15 +268,13 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
             </div>
           </div>
 
-          {highestBid && (
-            <button
-              onClick={() => onAcceptBid(highestBid)}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95 border border-emerald-600"
-            >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>📄 View Winning Quote & 5-Step Contract</span>
-            </button>
-          )}
+          <button
+            onClick={() => onAcceptBid(effectiveWinningBid)}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 shrink-0 active:scale-95 border border-emerald-600"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>📄 View Winning Quote & 5-Step Contract</span>
+          </button>
         </div>
       )}
 
@@ -350,14 +373,14 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
 
                 {/* Accept & Finalize Bidding Round Buttons */}
                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-                  {highestBid && activeListing.status !== 'ESCROW_LOCKED' && activeListing.status !== 'SOLD' && (
+                  {activeListing.status !== 'ESCROW_LOCKED' && activeListing.status !== 'SOLD' ? (
                     <>
                       <button
                         onClick={() => {
                           if (onCompleteBiddingRound) {
-                            onCompleteBiddingRound(activeListing.id, highestBid);
+                            onCompleteBiddingRound(activeListing.id, effectiveWinningBid);
                           } else {
-                            onAcceptBid(highestBid);
+                            onAcceptBid(effectiveWinningBid);
                           }
                           try {
                             confetti({ particleCount: 80, spread: 80, origin: { y: 0.6 } });
@@ -370,23 +393,21 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                       </button>
 
                       <button
-                        onClick={() => onAcceptBid(highestBid)}
+                        onClick={() => onAcceptBid(effectiveWinningBid)}
                         className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 border border-emerald-300"
                       >
-                        <span>{t.acceptTopBid}</span>
+                        <span>📄 View Trade Quote & 5-Step Contract</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </>
-                  )}
-
-                  {(activeListing.status === 'ESCROW_LOCKED' || activeListing.status === 'SOLD') && (
+                  ) : (
                     <div className="bg-emerald-950 border border-emerald-500/50 p-3 rounded-2xl text-center text-xs">
                       <span className="text-emerald-400 font-extrabold block flex items-center gap-1.5 justify-center">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         <span>🏆 Bidding Round Finalized!</span>
                       </span>
                       <span className="text-[11px] text-slate-300 mt-0.5 block">
-                        Last winning bidder (<strong>{highestBid?.bidderName || 'Corporate Winner'}</strong>) received the final quote & trade contract.
+                        Winning bidder (<strong>{effectiveWinningBid.bidderName}</strong>) received the final quote & trade contract.
                       </span>
                     </div>
                   )}
