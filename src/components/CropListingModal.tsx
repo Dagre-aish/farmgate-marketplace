@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { PlusCircle, Upload, CheckCircle2, ShieldCheck, Sparkles, Scale, Clock, Calendar } from 'lucide-react';
+import { PlusCircle, Upload, CheckCircle2, ShieldCheck, Sparkles, Scale, Clock, Calendar, Camera, Cpu } from 'lucide-react';
 import { FarmerListing, StorageType } from '../types';
 import { COMMODITIES } from '../data/commodities';
 import { pushListingToFirebase } from '../services/firebaseService';
+import { analyzeCropImageWithGemini } from '../services/geminiService';
 
 interface CropListingModalProps {
   onClose: () => void;
@@ -30,6 +31,10 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
   const [moisture, setMoisture] = useState<number>(11.2);
   const [foreignMatter, setForeignMatter] = useState<number>(0.8);
 
+  // Gemini AI Vision Assaying State
+  const [isScanningAI, setIsScanningAI] = useState<boolean>(false);
+  const [aiRemarks, setAiRemarks] = useState<string>('');
+
   // Auction Date & Time Slot Settings
   const [auctionEndDate, setAuctionEndDate] = useState<string>(
     new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]
@@ -38,6 +43,17 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
   const [auctionDurationHours, setAuctionDurationHours] = useState<number>(48);
 
   const selectedCommodity = COMMODITIES.find((c) => c.id === commodityId) || COMMODITIES[0];
+
+  const handleRunAIVisionScan = async () => {
+    setIsScanningAI(true);
+    const result = await analyzeCropImageWithGemini('', selectedCommodity.name);
+    setGrade(result.grade);
+    setMoisture(result.moisturePct);
+    setForeignMatter(result.foreignMatterPct);
+    setAskingPrice(result.suggestedPricePerQtl);
+    setAiRemarks(result.remarks);
+    setIsScanningAI(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,12 +269,33 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
             </div>
           </div>
 
-          {/* Assaying specs */}
-          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
-            <span className="font-bold text-slate-800 block text-[11px]">Quality Assaying Specs</span>
-            <div className="grid grid-cols-3 gap-2">
+          {/* Gemini AI Computer Vision Assaying Button & Specs Box */}
+          <div className="bg-slate-900 text-white p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-black text-xs text-emerald-400 flex items-center gap-1.5">
+                <Cpu className="w-4 h-4 text-emerald-400" />
+                <span>Google Gemini AI Computer Vision Assaying</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleRunAIVisionScan}
+                disabled={isScanningAI}
+                className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-[10px] font-black transition-all flex items-center gap-1 shadow-xs disabled:opacity-50"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>{isScanningAI ? 'AI Scanning Grain...' : '📸 Run Gemini AI Vision Scan'}</span>
+              </button>
+            </div>
+
+            {aiRemarks && (
+              <div className="p-2 bg-emerald-950/80 rounded-xl border border-emerald-500/40 text-[10px] text-emerald-300 font-medium leading-relaxed">
+                ✨ {aiRemarks}
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-2 text-slate-800">
               <div>
-                <label className="text-[10px] text-slate-500 block">Grade</label>
+                <label className="text-[10px] text-slate-400 block font-semibold mb-0.5">Assay Grade</label>
                 <select
                   value={grade}
                   onChange={(e) => setGrade(e.target.value as any)}
@@ -270,7 +307,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-slate-500 block">Moisture %</label>
+                <label className="text-[10px] text-slate-400 block font-semibold mb-0.5">Moisture %</label>
                 <input
                   type="number"
                   step="0.1"
@@ -280,7 +317,7 @@ export const CropListingModal: React.FC<CropListingModalProps> = ({
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-500 block">Foreign Matter %</label>
+                <label className="text-[10px] text-slate-400 block font-semibold mb-0.5">Foreign Matter %</label>
                 <input
                   type="number"
                   step="0.1"
