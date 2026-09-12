@@ -27,7 +27,7 @@ import { BuyerAuthModal } from './components/BuyerAuthModal';
 import { PlaceBidModal } from './components/PlaceBidModal';
 import { ListingBidsModal } from './components/ListingBidsModal';
 import { UserAuthModal } from './components/UserAuthModal';
-import { subscribeToRealtimeBids, subscribeToRealtimeListings, pushBidToFirebase } from './services/firebaseService';
+import { subscribeToRealtimeBids, subscribeToRealtimeListings, pushBidToFirebase, updateListingStatusInFirebase } from './services/firebaseService';
 import { subscribeToAuth, logoutUser, UserAccount } from './services/firebaseAuth';
 import { fetchLiveMandiPrices } from './services/mandiDataService';
 
@@ -43,7 +43,16 @@ export function App() {
   // Core Datasets State
   const [mandiRecords, setMandiRecords] = useState<MandiPriceRecord[]>(MANDI_RECORDS);
   const [buyerRfqs, setBuyerRfqs] = useState<BuyerRFQ[]>(INITIAL_BUYER_RFQS);
-  const [farmerListings, setFarmerListings] = useState<FarmerListing[]>(INITIAL_FARMER_LISTINGS);
+  const [farmerListings, setFarmerListings] = useState<FarmerListing[]>(() => {
+    const saved = localStorage.getItem('farmgate_farmer_listings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return INITIAL_FARMER_LISTINGS;
+  });
   const [bids, setBids] = useState<Bid[]>(INITIAL_BIDS);
 
   // Active Logged-In Buyer Session
@@ -97,6 +106,13 @@ export function App() {
     return () => unsubscribeAuth();
   }, []);
 
+  // Persist Farmer Listings changes to LocalStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('farmgate_farmer_listings', JSON.stringify(farmerListings));
+    } catch (e) {}
+  }, [farmerListings]);
+
   // Firebase Realtime Bids & Listings Subscriptions
   useEffect(() => {
     const unsubscribeBids = subscribeToRealtimeBids((updatedBids) => {
@@ -104,7 +120,16 @@ export function App() {
     }, INITIAL_BIDS);
 
     const unsubscribeListings = subscribeToRealtimeListings((updatedListings) => {
-      setFarmerListings(updatedListings);
+      setFarmerListings((currentListings) => {
+        const localStatusMap = new Map(currentListings.map((l) => [l.id, l.status]));
+        return updatedListings.map((l) => {
+          const localStatus = localStatusMap.get(l.id);
+          if ((localStatus === 'ESCROW_LOCKED' || localStatus === 'SOLD') && l.status === 'ACTIVE') {
+            return { ...l, status: localStatus };
+          }
+          return l;
+        });
+      });
     }, INITIAL_FARMER_LISTINGS);
 
     return () => {
@@ -188,6 +213,7 @@ export function App() {
         }
         return list;
       }));
+      updateListingStatusInFirebase(activeEscrowTransaction.listingId, 'SOLD');
     }
 
     setActiveEscrowTransaction({
@@ -262,6 +288,8 @@ export function App() {
       }
       return list;
     }));
+
+    updateListingStatusInFirebase(listingId, 'ESCROW_LOCKED', winningBid.bidPricePerQuintal);
 
     // 2. Open trade settlement & winning quote sheet for winning bidder
     handleAcceptBid(winningBid);

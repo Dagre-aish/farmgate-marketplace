@@ -252,3 +252,34 @@ export async function withdrawBidInFirebase(bidId: string): Promise<void> {
     console.warn('Updated bid status locally:', err);
   }
 }
+
+/**
+ * Finalize / Update Farmer Listing Status in Firebase Firestore & BroadcastChannel
+ */
+export async function updateListingStatusInFirebase(
+  listingId: string,
+  status: 'ESCROW_LOCKED' | 'SOLD',
+  highestBidPricePerQtl?: number
+): Promise<void> {
+  if (broadcastChannel) {
+    broadcastChannel.postMessage({
+      type: 'UPDATE_LISTING_STATUS',
+      payload: { listingId, status, highestBidPricePerQtl }
+    });
+  }
+
+  try {
+    const listingDocRef = doc(db, 'listings', listingId);
+    await setDoc(
+      listingDocRef,
+      {
+        status,
+        ...(highestBidPricePerQtl ? { highestBidPricePerQtl } : {})
+      },
+      { merge: true }
+    );
+    console.log('Listing status successfully updated in Firebase Firestore:', listingId, status);
+  } catch (err) {
+    console.warn('Updated listing status locally:', err);
+  }
+}

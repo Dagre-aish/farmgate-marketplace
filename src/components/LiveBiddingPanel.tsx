@@ -63,6 +63,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
   const [selectedLotId, setSelectedLotId] = useState<string>(
     farmerListings.length > 0 ? farmerListings[0].id : 'list_1'
   );
+  const [lotFilterTab, setLotFilterTab] = useState<'ACTIVE' | 'CLOSED'>('ACTIVE');
 
   // Live Countdown Timer (in seconds)
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(342);
@@ -621,80 +622,109 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
           </div>
         </div>
 
-        {/* Right 1 Col: Select Other Live Crop Lots */}
+        {/* Right 1 Col: Select Other Live / Past Crop Lots */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-sm text-slate-900 flex items-center gap-1.5">
               <Gavel className="w-4 h-4 text-emerald-600" />
-              <span>Select Active Crop Auction</span>
+              <span>Auction Lot Floor</span>
             </h3>
-            <span className="text-[10px] text-slate-500 font-mono font-bold">{farmerListings.length} Lots</span>
+            <span className="text-[10px] text-slate-500 font-mono font-bold">{farmerListings.length} Total Lots</span>
           </div>
 
-          <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
-            {farmerListings.map((listing) => {
-              const lotBids = bids.filter((b) => b.listingId === listing.id && b.status !== 'WITHDRAWN');
-              const topBid = lotBids.length > 0
-                ? Math.max(...lotBids.map((b) => b.bidPricePerQuintal))
-                : listing.askingPricePerQuintal;
+          {/* Active vs Past Auctions Tab Filter */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-extrabold">
+            <button
+              onClick={() => setLotFilterTab('ACTIVE')}
+              className={`py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                lotFilterTab === 'ACTIVE'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5" />
+              <span>Active ({farmerListings.filter((l) => l.status !== 'SOLD' && l.status !== 'ESCROW_LOCKED').length})</span>
+            </button>
 
-              return (
-                <div
-                  key={listing.id}
-                  onClick={() => setSelectedLotId(listing.id)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                    selectedLotId === listing.id
-                      ? 'bg-emerald-900 text-white border-emerald-700 shadow-md ring-2 ring-emerald-500/30'
-                      : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 shadow-2xs'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+            <button
+              onClick={() => setLotFilterTab('CLOSED')}
+              className={`py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                lotFilterTab === 'CLOSED'
+                  ? 'bg-slate-900 text-amber-400 shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Past Deals ({farmerListings.filter((l) => l.status === 'SOLD' || l.status === 'ESCROW_LOCKED').length})</span>
+            </button>
+          </div>
+
+          <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
+            {farmerListings
+              .filter((l) => lotFilterTab === 'ACTIVE' ? (l.status !== 'SOLD' && l.status !== 'ESCROW_LOCKED') : (l.status === 'SOLD' || l.status === 'ESCROW_LOCKED'))
+              .map((listing) => {
+                const lotBids = bids.filter((b) => b.listingId === listing.id && b.status !== 'WITHDRAWN');
+                const topBid = lotBids.length > 0
+                  ? Math.max(...lotBids.map((b) => b.bidPricePerQuintal))
+                  : (listing.highestBidPricePerQtl || listing.askingPricePerQuintal);
+
+                return (
+                  <div
+                    key={listing.id}
+                    onClick={() => setSelectedLotId(listing.id)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                       selectedLotId === listing.id
-                        ? 'bg-emerald-800 text-emerald-200 border border-emerald-600'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      #{listing.id}
-                    </span>
-                    {listing.status === 'SOLD' || listing.status === 'ESCROW_LOCKED' ? (
-                      <span className="text-[10px] font-mono font-black text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-700/50 flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-rose-400" />
-                        <span>CLOSED</span>
+                        ? 'bg-emerald-900 text-white border-emerald-700 shadow-md ring-2 ring-emerald-500/30'
+                        : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                        selectedLotId === listing.id
+                          ? 'bg-emerald-800 text-emerald-200 border border-emerald-600'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        #{listing.id}
                       </span>
-                    ) : (
-                      <span className="text-[10px] font-mono font-bold text-amber-400">
-                        {lotBids.length} Active Bids
-                      </span>
-                    )}
-                  </div>
-
-                  <h4 className="font-extrabold text-sm mb-1">{listing.commodityName}</h4>
-                  <p className={`text-xs mb-3 ${selectedLotId === listing.id ? 'text-slate-300' : 'text-slate-500'}`}>
-                    {listing.quantityQuintals} Quintals • {listing.farmerName} ({listing.district})
-                  </p>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/20">
-                    <div>
-                      <span className={`text-[9px] font-bold block uppercase ${selectedLotId === listing.id ? 'text-slate-300' : 'text-slate-400'}`}>
-                        Top Price
-                      </span>
-                      <span className={`text-sm font-black font-mono ${selectedLotId === listing.id ? 'text-emerald-300' : 'text-slate-900'}`}>
-                        ₹{topBid} / qtl
-                      </span>
+                      {listing.status === 'SOLD' || listing.status === 'ESCROW_LOCKED' ? (
+                        <span className="text-[10px] font-mono font-black text-rose-400 bg-rose-950 px-2 py-0.5 rounded border border-rose-700/50 flex items-center gap-1">
+                          <Lock className="w-3 h-3 text-rose-400" />
+                          <span>FINALIZED / PAST</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono font-bold text-amber-400">
+                          {lotBids.length} Active Bids
+                        </span>
+                      )}
                     </div>
 
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 ${
-                      selectedLotId === listing.id
-                        ? 'bg-emerald-400 text-slate-950 font-black'
-                        : 'bg-emerald-50 text-emerald-700'
-                    }`}>
-                      <span>Focus Stage</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </span>
+                    <h4 className="font-extrabold text-sm mb-1">{listing.commodityName}</h4>
+                    <p className={`text-xs mb-3 ${selectedLotId === listing.id ? 'text-slate-300' : 'text-slate-500'}`}>
+                      {listing.quantityQuintals} Quintals • {listing.farmerName} ({listing.district})
+                    </p>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/20">
+                      <div>
+                        <span className={`text-[9px] font-bold block uppercase ${selectedLotId === listing.id ? 'text-slate-300' : 'text-slate-400'}`}>
+                          {listing.status === 'SOLD' || listing.status === 'ESCROW_LOCKED' ? 'Finalized Rate' : 'Top Price'}
+                        </span>
+                        <span className={`text-sm font-black font-mono ${selectedLotId === listing.id ? 'text-emerald-300' : 'text-slate-900'}`}>
+                          ₹{topBid} / qtl
+                        </span>
+                      </div>
+
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 ${
+                        selectedLotId === listing.id
+                          ? 'bg-emerald-400 text-slate-950 font-black'
+                          : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        <span>Focus Stage</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
 
