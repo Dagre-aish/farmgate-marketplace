@@ -285,17 +285,6 @@ export const TradeSettlementModal: React.FC<TradeSettlementModalProps> = ({
             >
               {transaction.currentStep === 'PAYOUT_RELEASED' ? 'Close Window' : 'Close'}
             </button>
-
-            <button
-              onClick={() => {
-                alert(`Official Trade Quote & Contract Sheet #${transaction.id.slice(-6)} downloaded for winning bidder ${transaction.buyerName}. Total gross value: ₹${transaction.totalGrossAmount.toLocaleString('en-IN')}`);
-                window.print();
-              }}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs"
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-400" />
-              <span>📥 Download Quote PDF</span>
-            </button>
           </div>
 
           {transaction.currentStep !== 'PAYOUT_RELEASED' && (

@@ -29,6 +29,7 @@ import { ListingBidsModal } from './components/ListingBidsModal';
 import { UserAuthModal } from './components/UserAuthModal';
 import { subscribeToRealtimeBids, subscribeToRealtimeListings, pushBidToFirebase } from './services/firebaseService';
 import { subscribeToAuth, logoutUser, UserAccount } from './services/firebaseAuth';
+import { fetchLiveMandiPrices } from './services/mandiDataService';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'mandi' | 'advisor' | 'marketplace' | 'bidding' | 'fpo'>('bidding');
@@ -62,6 +63,17 @@ export function App() {
   // Bidding Modals State
   const [selectedListingForBid, setSelectedListingForBid] = useState<FarmerListing | null>(null);
   const [selectedListingBidsView, setSelectedListingBidsView] = useState<FarmerListing | null>(null);
+
+  // Fetch Live Mandi Data from data.gov.in API
+  useEffect(() => {
+    const loadMandiData = async () => {
+      const liveData = await fetchLiveMandiPrices();
+      if (liveData && liveData.length > 0) {
+        setMandiRecords(liveData);
+      }
+    };
+    loadMandiData();
+  }, []);
 
   // Firebase Auth Listener
   useEffect(() => {

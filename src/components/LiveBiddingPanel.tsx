@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  FileCheck2,
   Gavel, 
   Clock, 
   TrendingUp, 
@@ -463,7 +464,7 @@ export const LiveBiddingPanel: React.FC<LiveBiddingPanelProps> = ({
                       className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 border border-emerald-300"
                     >
                       <FileCheck2 className="w-4 h-4 text-slate-950" />
-                      <span>📄 Open & Download Full Trade Quote & Invoice</span>
+                      <span>📄 View Official Trade Quote & Invoice</span>
                     </button>
                   )}
                 </div>
